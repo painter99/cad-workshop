@@ -1,0 +1,20 @@
+# Virtuální prostředí
+.venv/
+venv/
+__pycache__/
+*.pyc
+
+# VS Code
+.vscode/
+
+# Logy
+*.log
+
+# OS soubory
+.DS_Store
+Thumbs.db
+
+# IDE
+.idea/
+*.swp
+*.swo
