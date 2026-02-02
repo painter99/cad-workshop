@@ -14,14 +14,14 @@ Z oficiálního “About” vyplývá, že build123d je Python‑based parametri
 - **[`docs/cz/`](docs/cz/)** – moje poznámky (CZ)
 - **[`docs/images/`](docs/images/)** – screenshoty a obrázky do dokumentace
 - **[`examples/`](examples/)** – menší, čisté ukázky
-- **[`exports/stl/`](exports/stl/)** – exportované STL soubory (artefakty)
-- **[`sandbox/`](sandbox/)** – rychlé experimenty a rozpracované skripty (aktuálně zde mám 2 Python soubory)
+- **[`exports/stl/`](exports/stl/)** – exportované STL soubory
+- **[`sandbox/`](sandbox/)** – rychlé experimenty a rozpracované skripty
 
 ## Nástroje / workflow
 
 - Python 3.x
 - build123d + OpenCascade
-- VS Code + **OCP viewer** (rychlý náhled modelů při iteraci)
+- VS Code + **OCP viewer**
 
 ## Poznámky k obsahu
 
