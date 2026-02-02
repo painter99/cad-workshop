@@ -1,27 +1,28 @@
 # CAD Workshop
 
-Experimentování s parametrickým CAD přes Python a Build123d.
+Experimentování s parametrickým CAD přes Python a **build123d** (CAD‑as‑code nad OpenCascade). Repo je vedené **code‑first**: zdroj pravdy je kód, exporty (STL, obrázky) jsou jen výstupy.
 
-- **Nástroj:** Build123d (Python wrapper pro OpenCascade)
-- **Přístup:** Code-first – kód jako zdroj pravdy
-- **Účel:** Naučit se tvořit 3D modely programátorsky místo GUI
+## Oficiální zdroje (build123d)
 
----
+- Dokumentace: https://build123d.readthedocs.io/en/latest/
+- Upstream GitHub: https://github.com/gumyr/build123d
 
-## Proč Build123d?
+Z oficiálního “About” vyplývá, že build123d je Python‑based parametrický **BREP** modelovací framework postavený na **OpenCascade**, s důrazem na čisté „Pythonic“ API, čitelné CAD‑as‑code workflow a exporty pro výrobu (např. STL/STEP).
 
-Build123d je knihovna, která umožňuje psát 3D CAD skripty v čistém Pythonu. Oproti OpenSCAD (CSG) nebo FreeCAD (GUI-first) je to čistě kódový přístup nad profesionálním jádrem OpenCascade.
+## Struktura repozitáře
 
-Výhody:
-- Modely jako text → verzovatelné v Gitu
-- Parametrický design → generování variant kódem
-- Exporty: STL (3D tisk), STEP (CNC/výroba)
+- **[`docs/cz/`](docs/cz/)** – moje poznámky (CZ)
+- **[`docs/images/`](docs/images/)** – screenshoty a obrázky do dokumentace
+- **[`examples/`](examples/)** – menší, čisté ukázky
+- **[`exports/stl/`](exports/stl/)** – exportované STL soubory (artefakty)
+- **[`sandbox/`](sandbox/)** – rychlé experimenty a rozpracované skripty (aktuálně zde mám 2 Python soubory)
 
----
-
-## Stack
+## Nástroje / workflow
 
 - Python 3.x
-- Build123d
-- OpenCascade (jádro)
-- VS Code
+- build123d + OpenCascade
+- VS Code + **OCP viewer** (rychlý náhled modelů při iteraci)
+
+## Poznámky k obsahu
+
+Tento repozitář je osobní workshop. V `sandbox/` můžou být věci „neuklizené“ nebo ve stavu pokus/omyl. Pokud něco začnu používat opakovaně nebo to bude dobrý příklad, přesunu to do `examples/` a doplním k tomu krátké vysvětlení do `docs/cz/`.
