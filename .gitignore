@@ -1,14 +1,23 @@
 # Virtuální prostředí
 .venv/
 venv/
+env/
+
+# Python cache
 __pycache__/
-*.pyc
+*.py[cod]
+
+# Tooling cache (volitelné, ale brzy užitečné)
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 
 # VS Code
 .vscode/
 
-# Logy
+# Logy / temp
 *.log
+*.tmp
 
 # OS soubory
 .DS_Store
