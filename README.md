@@ -5,7 +5,7 @@ Experimentování s parametrickým CAD přes Python a **build123d**. Toto repo j
 ## Proč build123d?
 
 - **Efektivita:** Rychlejší než GUI pro funkční díly.
-- **AI Synergy:** Ideální pro generování kódu pomocí LLMs. Více v [AI-Assisted Workflow](docs/cz/README.md#ai-assisted-workflow).
+- **AI Synergy:** Ideální pro generování kódu pomocí LLMs. Více v [ai-assisted-workflow](docs/cz/ai-assisted-workflow.md).
 - **Single Source of Truth:** Verzování, parametrizace a automatizace.
 
 ## Struktura a navigace
