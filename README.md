@@ -1,28 +1,20 @@
 # CAD Workshop
 
-Experimentování s parametrickým CAD přes Python a **build123d** (CAD‑as‑code nad OpenCascade). Repo je vedené **code‑first**: zdroj pravdy je kód, exporty (STL, obrázky) jsou jen výstupy.
+Experimentování s parametrickým CAD přes Python a **build123d**. Toto repo je vedené filosofií **code‑first**: zdrojem pravdy je kód, exporty jsou pouze výstupy.
 
-## Oficiální zdroje (build123d)
+## Proč build123d?
 
-- Dokumentace: https://build123d.readthedocs.io/en/latest/
-- Upstream GitHub: https://github.com/gumyr/build123d
+- **Efektivita:** Rychlejší než GUI pro funkční díly.
+- **AI Synergy:** Ideální pro generování kódu pomocí LLMs. Více v [AI-Assisted Workflow](docs/cz/README.md#ai-assisted-workflow).
+- **Single Source of Truth:** Verzování, parametrizace a automatizace.
 
-Z oficiálního “About” vyplývá, že build123d je Python‑based parametrický **BREP** modelovací framework postavený na **OpenCascade**, s důrazem na čisté „Pythonic“ API, čitelné CAD‑as‑code workflow a exporty pro výrobu (např. STL/STEP).
+## Struktura a navigace
 
-## Struktura repozitáře
+- 📂 **[docs/](docs/cz/)** – Dokumentace, metodika a AI workflow.
+- 📂 **[examples/](examples/)** – Izolované, čisté ukázky konkrétních funkcí.
+- 📂 **[projects/](projects/)** – Komplexnější modely a sestavy (assemblies).
+- 📂 **[sandbox/](sandbox/)** – "Pískoviště" pro rychlé experimenty.
+- 📂 **[exports/](exports/)** – Výstupní soubory (STL, STEP).
 
-- **[`docs/cz/`](docs/cz/)** – moje poznámky (CZ)
-- **[`docs/images/`](docs/images/)** – screenshoty a obrázky do dokumentace
-- **[`examples/`](examples/)** – menší, čisté ukázky
-- **[`exports/stl/`](exports/stl/)** – exportované STL soubory
-- **[`sandbox/`](sandbox/)** – rychlé experimenty a rozpracované skripty
-
-## Nástroje / workflow
-
-- Python 3.x
-- build123d + OpenCascade
-- VS Code + **OCP viewer**
-
-## Poznámky k obsahu
-
-Tento repozitář je osobní workshop. V `sandbox/` můžou být věci „neuklizené“ nebo ve stavu pokus/omyl. Pokud něco začnu používat opakovaně nebo to bude dobrý příklad, přesunu to do `examples/` a doplním k tomu krátké vysvětlení do `docs/cz/`.
+---
+*Tento repozitář je osobní workshop. Nezávislý projekt postavený na: [build123d.readthedocs.io](https://build123d.readthedocs.io/en/latest/), [gumyr/build123d](https://github.com/gumyr/build123d)*
