@@ -17,4 +17,4 @@ Experimentování s parametrickým CAD přes Python a **build123d**. Toto repo j
 - 📂 **[exports/](exports/)** – Výstupní soubory (STL, STEP).
 
 ---
-*Tento repozitář je osobní workshop. Nezávislý projekt postavený na: [build123d.readthedocs.io](https://build123d.readthedocs.io/en/latest/), [gumyr/build123d](https://github.com/gumyr/build123d)*
+*Tento repozitář je osobní workshop postavený na: [build123d.readthedocs.io](https://build123d.readthedocs.io/en/latest/), [gumyr/build123d](https://github.com/gumyr/build123d)*
