@@ -133,6 +133,7 @@ Proč:
 
 - VS Code + OCP CAD Viewer (rychlý náhled + inspekce topologie)
 - exporty (dle potřeby): STL / STEP / DXF / SVG
+- [t3.chat](https://t3.chat/) - pro [AI-Assisted Workflow](ai-assisted-workflow.md)
 
 ---
 
