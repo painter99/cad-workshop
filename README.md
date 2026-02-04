@@ -6,7 +6,8 @@ Experimentování s parametrickým CAD přes Python a **build123d**. Toto repo j
 
 Tento workshop vznikl z kombinace praktické potřeby a chuti učit se věci „správně“. Můj přechod od klasického GUI k Pythonu má několik důvodů:
 
-- **Efektivita a rychlost (AI Synergy):** U mnoha tvarů mi stačí popsat záměr přirozeným jazykem AI modelu, nechat vygenerovat základ kódu a ten následně iteračně ladit. Tento proces je pro mě u mnoha dílů řádově rychlejší a méně namáhavý než manuální kreslení ve FreeCADu. Tento proces popisuji detailněji v sekci [ai-assisted-workflow](docs/cz/README.md#ai-assisted-workflow).
+- **Efektivita a rychlost (AI Synergy):** U mnoha tvarů mi stačí popsat záměr přirozeným jazykem AI modelu, nechat vygenerovat základ kódu a ten následně iteračně ladit. Tento proces je pro mě u mnoha dílů řádově rychlejší a méně namáhavý než manuální kreslení ve FreeCADu. Tento proces popisuji detailněji v sekci [ai-assisted-workflow](docs/cz/ai-assisted-workflow.md).
+
 - **Python synergie:** Protože Python intenzivně používám ve svém hlavním projektu [ai-workshop](https://github.com/painter99/ai-workshop), dává mi smysl využít stejný jazyk i pro inženýrskou tvorbu. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
 - **Kód jako „Single Source of Truth“:**
   - **Verzování:** V Gitu přesně vidím evoluci modelu a historii změn.
@@ -17,7 +18,7 @@ Použití **BREP** (OpenCascade) pod kapotou znamená přesné inženýrské CAD
 
 ## Struktura a navigace
 
-- 📂 **[docs/](docs/cz/)** – Dokumentace, metodika a AI workflow.
+- 📂 **[docs/](docs/)** – Dokumentace, metodika, AI workflow a vizuální výstupy.
 - 📂 **[examples/](examples/)** – Izolované, čisté ukázky konkrétních funkcí.
 - 📂 **[projects/](projects/)** – Komplexnější modely a sestavy (assemblies).
 - 📂 **[sandbox/](sandbox/)** – "Pískoviště" pro rychlé experimenty.
