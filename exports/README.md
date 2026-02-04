@@ -7,4 +7,4 @@ Tato složka obsahuje **vygenerované výstupy** ze skriptů (např. pro 3D tisk
 
 ## Struktura
 
-- **[`stl/`](stl/)** – exporty, například pro 3D tisk
+- 📂 **[`stl/`](stl/)** – exporty, například pro 3D tisk
