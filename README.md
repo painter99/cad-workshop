@@ -14,7 +14,7 @@ Tento workshop vznikl z kombinace praktické potřeby a chuti učit se věci „
   - **Parametrizace:** Změna rozměrů je otázkou úpravy proměnné, nikoliv překreslování modelu.
   - **Automatizace:** Možnost skriptovat exporty a generovat varianty bez otevírání editoru.
 
-Použití **BREP** (OpenCascade) pod kapotou znamená přesné inženýrské CAD workflow. Výhledově plánuji tyto principy integrovat i do svých AI experimentů v rámci hlavního projektu.
+Použití **BREP** (OpenCascade) pod kapotou znamená přesné inženýrské CAD workflow.
 
 ## Struktura a navigace
 
