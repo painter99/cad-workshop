@@ -8,7 +8,7 @@ Tento workshop vznikl z kombinace praktické potřeby a chuti učit se věci „
 
 - **Efektivita a rychlost (AI Synergy):** U mnoha tvarů mi stačí popsat záměr přirozeným jazykem AI modelu, nechat vygenerovat základ kódu a ten následně iteračně ladit. Tento proces je pro mě u mnoha dílů řádově rychlejší a méně namáhavý než manuální kreslení ve [FreeCADu](https://www.freecad.org/index.php?lang=cs). Tento proces popisuji detailněji v sekci [ai-assisted-workflow](docs/cz/ai-assisted-workflow.md).
 
-- **Python synergie:** Protože Python intenzivně používám ve svém hlavním projektu [ai-workshop](https://github.com/painter99/ai-workshop), dává mi smysl využít stejný jazyk i pro inženýrskou tvorbu. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
+- **Python synergie:** Protože Python intenzivně používám ve svém hlavním projektu [ai-workshop](https://github.com/painter99/ai-workshop), dává mi smysl využít stejný jazyk i pro CAD modelování. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
 - **Kód jako „Single Source of Truth“:**
   - **Verzování:** V Gitu přesně vidím evoluci modelu a historii změn.
   - **Parametrizace:** Změna rozměrů je otázkou úpravy proměnné, nikoliv překreslování modelu.
