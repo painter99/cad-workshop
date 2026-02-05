@@ -189,6 +189,10 @@ Nesnažit se vše modelovat od nuly.
 
 - VS Code + OCP CAD Viewer (rychlý náhled + inspekce topologie)
 - [t3.chat](https://t3.chat/) - pro [AI-Assisted Workflow](ai-assisted-workflow.md)
+- **Testování & ladění (krátce):**
+  - `pytest` – pro automatické testy (bbox, volume, počet prvků)
+  - Visual debug – VS Code + OCP CAD Viewer, krokování kódu
+  - Co testovat: rozměry, clearances, počet děr, objem/mass
 
 ---
 
