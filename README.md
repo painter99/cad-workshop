@@ -4,7 +4,7 @@ Experimentování s parametrickým CAD přes Python a **build123d**. Toto repo j
 
 ## Proč build123d (motivace a cíle)
 
-Tento workshop vznikl z kombinace praktické potřeby a chuti učit se věci „správně“. Můj přechod od klasického GUI k Pythonu má několik důvodů:
+Tento workshop vznikl z kombinace praktické potřeby a chuti učit se věci „správně“. Můj přechod od klasického klikání v GUI k Pythonu má několik důvodů:
 
 - **Efektivita a rychlost (AI Synergy):** U mnoha tvarů mi stačí popsat záměr přirozeným jazykem AI modelu, nechat vygenerovat základ kódu a ten následně iteračně ladit. Tento proces je pro mě u mnoha dílů řádově rychlejší a méně namáhavý než manuální kreslení ve [FreeCADu](https://www.freecad.org/index.php?lang=cs). Tento proces popisuji detailněji v sekci [ai-assisted-workflow](docs/cz/ai-assisted-workflow.md).
 
