@@ -6,11 +6,29 @@ ne jako oficiální dokumentaci.
 Rychlá definice (ať je jasné, o čem mluvím):
 - build123d je parametrický CAD framework v Pythonu pro 2D/3D modelování.
 - Je postavený na BREP přístupu (Boundary Representation) a běží nad OCCT (Open Cascade).
-- Cíl: „CAD jako kód“ – čitelnost, udržovatelnost, parametrizace, možnost testů a automatizace.
+- Cíl: „CAD-as-code“ — čitelnost, udržovatelnost, parametrizace, možnost testů a automatizace.
 
 Zdroje (upstream):
 - build123d docs (hlavní rozcestník): https://build123d.readthedocs.io/en/latest/
 - build123d GitHub: https://github.com/gumyr/build123d
+
+Testováno s:
+- build123d: `0.10.0`
+- Python: `3.13.11`
+
+---
+
+## Obsah
+- [0) Quick start](#0-quick-start-instalace--základní-setup)
+- [1) Kontext: proč CAD-as-code](#1-kontext-proč-cad-as-code)
+- [2) Builder vs Algebra](#2-dva-režimy-modelování-builder-vs-algebra)
+- [3) Topologie](#3-topologie-jak-build123d-vidí-těleso)
+- [4) Selectors](#4-selectors-robustní-výběr-prvků-praktické-poznámky)
+- [5) Best practices](#5-best-practices-pro-robustní-modely)
+- [6) Sestavy a mechanismy](#6-sestavy-a-mechanismy)
+- [7) Export a Ekosystém](#7-export-a-ekosystém)
+- [8) Nástroje](#8-nástroje-moje-workflow)
+- [9) Compatibility / Verze](#9-compatibility--verze-krátce)
 
 ---
 
@@ -20,11 +38,27 @@ Požadavky:
 - Python 3.10–3.13 (dle aktuální dokumentace)
 
 Instalace:
-- `pip install build123d`
+```bash
+python -m venv .venv
+# aktivace venv: .venv\Scripts\activate (Win) nebo source .venv/bin/activate
+pip install --upgrade pip
+pip install build123d
+```
+
+Sanity check (rychle ověřím, že import funguje a něco se vykreslí/vypíše):
+```python
+from build123d import *
+
+print(Box(1, 2, 3).show_topology(limit_class="Face"))
+# Pozn.: u některých verzí může být potřeba Solid.make_box(1, 2, 3)
+```
 
 Doporučený viewer / IDE:
 - VS Code + OCP CAD Viewer (rychlý náhled + inspekce topologie)
-- Pro interaktivní práci se hodí Jupyter (pokud chci iterovat tvar po malých krocích)
+- Pro interaktivní práci se hodí Jupyter (iterace po malých krocích)
+
+> Tip: na začátku každého souboru si dávám blok parametrů (hlavní rozměry, jednotky, tolerance).
+> Změny jsou pak „jedním místem“ a model se líp refaktoruje.
 
 ---
 
@@ -54,7 +88,22 @@ Kdy ho použít:
 - když mám hodně podmínek/smyček a chci mít „CAD historii“ čitelnou v kódu
 
 Můj mentální model:
-- „průběžný součet“ – operace uvnitř bloku mění aktuální geometrii
+- „průběžný součet“ — operace uvnitř bloku mění aktuální geometrii
+
+Mini ukázka (2D → extrude → cut na top face):
+```python
+from build123d import *
+
+with BuildPart() as p:
+    with BuildSketch():
+        Rectangle(20, 20)
+    extrude(amount=10)  # základní blok
+
+    top_face = p.faces().sort_by(Axis.Z)[-1]
+    with BuildSketch(top_face):
+        Circle(5)
+    extrude(amount=-5, mode=Mode.SUBTRACT)  # odečtení válce
+```
 
 ### Algebra mode (bezstavový, operátorový)
 Princip:
@@ -67,12 +116,27 @@ Základní operátory (prakticky):
 - `&` intersect (průnik)
 - `*` transformace (typicky `Location` / `Pos` / `Rot`)
 
-Kdy se mi hodí:
-- rychlé skládání tvarů a „geometrické rovnice“
-- vektorizované operace (např. více děr přes list locations)
+Ukázka (geometrické rovnice + transformace):
+```python
+from build123d import *
+
+part = Box(1, 2, 3) + Cylinder(0.2, 5)
+part = Box(1, 2, 3) - Cylinder(0.2, 5)
+
+# umístění/rotace (ověř syntaxi ve své verzi build123d)
+part = Plane.XZ * Pos(1, 2, 3) * Rot(0, 100, 45) * Box(1, 2, 3)
+```
+
+Dodatek — práce s křivkami (snapping / navazování):
+```python
+# Edge/Wire operátory (Algebra mode)
+pos_vec = curve @ 0.5   # Vector: pozice na křivce (0.0 až 1.0)
+tangent = curve % 0.5   # Vector: tečna ve stejném bodě
+loc = curve ^ 0.5       # Location: umístění v bodě (užitečné pro placement)
+```
 
 Poznámka:
-- v praxi se dají kombinovat oba přístupy – to je jedna z výhod build123d.
+- v praxi se dají kombinovat oba přístupy — to je jedna z výhod build123d.
 
 ---
 
@@ -104,7 +168,7 @@ Základ:
 
 Užitečné operace na výběru:
 - `filter_by(...)` – zúžení podle geometrie / orientace / typu
-  - typicky osa/směr: např. `filter_by(Axis.Z)` (podle orientace k ose)
+  - typicky osa/směr: např. `filter_by(Axis.Z)`
   - typicky typ geometrie: např. `filter_by(GeomType.CIRCLE)` (kruhové hrany)
 - `sort_by(...)` – seřazení a výběr extrému (`[0]`, `[-1]`)
   - např. `sort_by(Axis.Z)` a pak vzít „nejvyšší“ / „nejnižší“
@@ -121,6 +185,34 @@ Mini checklist při ladění selektorů:
 - nejdřív si vypsat/zkontrolovat počet prvků (`len(...)`)
 - zkontrolovat orientaci/umístění (osa, normal, bounding box)
 - teprve pak aplikovat `fillet/chamfer`
+
+> Pozor: `GeomType.CIRCLE` patří typicky na `edges()`, ne na `faces()`.
+> Pokud filtruješ plochy, hledej např. `GeomType.PLANE`, `GeomType.CYLINDER`, apod.
+
+Snippety pro ladění děr (Varianty A/B):
+
+Varianta A — chci kruhové hrany:
+```python
+from build123d import *
+
+faces_z = part.faces().filter_by(Axis.Z)
+print("faces_z:", len(faces_z))
+
+top_hole_edges = faces_z.edges().filter_by(GeomType.CIRCLE)
+print("top_hole_edges:", len(top_hole_edges))
+```
+
+Varianta B — chci plochy, které obsahují díry (inner wires):
+```python
+from build123d import *
+
+faces_z = part.faces().filter_by(Axis.Z)
+faces_with_holes = faces_z.filter_by(lambda f: len(f.inner_wires()) > 0)
+print("faces_with_holes:", len(faces_with_holes))
+```
+
+> Tip: při ladění selektorů vždy začni `print(len(...))` a když si nejsi jistý,
+> rozklikni topologii ve VS Code přes OCP CAD Viewer.
 
 ---
 
@@ -167,6 +259,19 @@ Proč:
   - `CylindricalJoint`: 2 DOF (rotace + posun)
   - `BallJoint`: 3 DOF (kulový čep)
 
+Umisťování prvků (location contexts) + bulk operace:
+```python
+from build123d import *
+
+with BuildPart():
+    # rozmístění 2x2 objektů na aktivní rovině
+    with GridLocations(x_spacing=5, y_spacing=5, x_count=2, y_count=2):
+        Sphere(1)
+
+# vektorizované operace (efektivní pro hodně děr / řezů)
+part -= [loc * Cylinder(radius, height) for loc in locations]
+```
+
 ---
 
 ## 7) Export a Ekosystém
@@ -175,7 +280,7 @@ Proč:
 - **STL / 3MF**: pro 3D tisk (pozor na nastavení tesselace - `angular_tolerance`)
 - **STEP**: "Master" formát. Pro přesný přenos do jiných CADů (Fusion, FreeCAD) a pro CAM (obrábění).
 - **DXF**: pro 2D výrobu (laser, CNC řezání).
-  - Tip: Používat vrstvy (Layers) pro odlišení řezu a gravírování.
+  - Tip: používat vrstvy (Layers) pro odlišení řezu a gravírování.
 
 ### 7.2 Užitečné knihovny (Ekosystém)
 Nesnažit se vše modelovat od nuly.
@@ -183,20 +288,39 @@ Nesnažit se vše modelovat od nuly.
 - `gggears`: Generátor ozubených kol (evolventní profily).
 - `ocp-freecad-cam`: Generování drah (G-code) přímo z modelu přes FreeCAD engine.
 
+Export / import reference:
+```python
+from build123d import *
+
+export_step(part, "model.step")  # CAD exchange / CAM
+export_stl(part, "print.stl")    # 3D tisk (tesselace!)
+svg_data = import_svg("profile.svg")
+```
+
 ---
 
 ## 8) Nástroje (moje workflow)
 
 - VS Code + OCP CAD Viewer (rychlý náhled + inspekce topologie)
 - [t3.chat](https://t3.chat/) - pro [AI-Assisted Workflow](ai-assisted-workflow.md)
-- **Testování & ladění (krátce):**
-  - `pytest` – pro automatické testy (bbox, volume, počet prvků)
-  - Visual debug – VS Code + OCP CAD Viewer, krokování kódu
-  - Co testovat: rozměry, clearances, počet děr, objem/mass
+
+**Testování & ladění (krátce):**
+- `pytest` – pro automatické testy (bbox, volume, počet prvků)
+- Visual debug – VS Code + OCP CAD Viewer, krokování kódu
+- Co testovat: rozměry, clearances, počet děr, objem/mass
 
 ---
 
-## TODO (až budu mít čas)
-- [ ] přidat konkrétní ukázku robustního výběru ploch (faces/filter/sort)
-- [ ] přidat mini “template” pro nový díl (parametry → skica → extrude → features)
-- [ ] poznámky k tolerancím a exportu STL (tesselace)
+## 9) Compatibility / Verze (krátce)
+
+Build123d se rychle vyvíjí. Pokud snippet přestane fungovat:
+- zkontroluj verzi:
+```python
+import build123d
+print(getattr(build123d, "__version__", "unknown"))
+```
+- zkontroluj aktuální docs: https://build123d.readthedocs.io
+- počítej s tím, že existují různé vrstvy API (např. `Box(...)` vs `Solid.make_box(...)`)
+  a že helpery/aliasy se mohou časem upřesňovat (`Pos`, `Rot`, `GridLocations`, ...)
+
+> Tip: pokud chceš stabilitu v CI/projektech, pinni verzi build123d v requirements.
