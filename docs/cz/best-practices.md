@@ -48,9 +48,19 @@ pip install build123d
 Sanity check (rychle ověřím, že import funguje a něco se vykreslí/vypíše):
 ```python
 from build123d import *
+from ocp_vscode import show
 
-print(Box(1, 2, 3).show_topology(limit_class="Face"))
-# Pozn.: u některých verzí může být potřeba Solid.make_box(1, 2, 3)
+# 1. Vytvoření geometrie (Algebra mód)
+# Box je standardní 3D primitivum; v Direct API se používá Solid.make_box
+box = Box(1, 2, 3) 
+
+# 2. Sanity check: Výpis topologické struktury do konzole
+# limit_class="Face" omezí výpis na úroveň ploch
+print(box.show_topology(limit_class="Face"))
+
+# 3. Zobrazení v OCP Vieweru
+# Bez tohoto příkazu kód proběhne, ale okno prohlížeče zůstane prázdné
+show(box, names=["sanity_box"])
 ```
 
 Doporučený viewer / IDE:
@@ -93,16 +103,21 @@ Můj mentální model:
 Mini ukázka (2D → extrude → cut na top face):
 ```python
 from build123d import *
+from ocp_vscode import show
 
 with BuildPart() as p:
     with BuildSketch():
         Rectangle(20, 20)
     extrude(amount=10)  # základní blok
 
-    top_face = p.faces().sort_by(Axis.Z)[-1]
+    # Výběr horní plochy pro novou skicu
+    top_face = p.faces().sort_by(Axis.Z)[-1] 
     with BuildSketch(top_face):
         Circle(5)
     extrude(amount=-5, mode=Mode.SUBTRACT)  # odečtení válce
+
+# Musíš volat p.part (výsledek z builderu) nebo p (instanci builderu)
+show(p.part) 
 ```
 
 ### Algebra mode (bezstavový, operátorový)
@@ -119,12 +134,14 @@ Základní operátory (prakticky):
 Ukázka (geometrické rovnice + transformace):
 ```python
 from build123d import *
+from ocp_vscode import show
 
 part = Box(1, 2, 3) + Cylinder(0.2, 5)
 part = Box(1, 2, 3) - Cylinder(0.2, 5)
 
 # umístění/rotace (ověř syntaxi ve své verzi build123d)
 part = Plane.XZ * Pos(1, 2, 3) * Rot(0, 100, 45) * Box(1, 2, 3)
+show(part)
 ```
 
 Dodatek — práce s křivkami (snapping / navazování):
@@ -137,6 +154,7 @@ loc = curve ^ 0.5       # Location: umístění v bodě (užitečné pro placeme
 
 Poznámka:
 - v praxi se dají kombinovat oba přístupy — to je jedna z výhod build123d.
+- k API: I když jsou snippety funkční, v seznamu ShapeList (který vrací např. .faces()) lze místo [-1] použít i přehlednější vlastnost .last (např. p.faces().sort_by(Axis.Z).last), která vrací poslední prvek seznamu. Obě varianty jsou však v Pythonu platné.
 
 ---
 
@@ -194,21 +212,50 @@ Snippety pro ladění děr (Varianty A/B):
 Varianta A — chci kruhové hrany:
 ```python
 from build123d import *
+from ocp_vscode import show
 
+# 1. Vytvoření testovacího dílu (předpoklad pro funkčnost)
+with BuildPart() as p:
+    Box(100, 50, 10)
+    with Locations((20, 0, 0), (-20, 0, 0)):
+        Cylinder(radius=5, height=20, mode=Mode.SUBTRACT)
+part = p.part # Extrakce tělesa z builderu
+
+# 2. Výběr ploch kolmých k ose Z
 faces_z = part.faces().filter_by(Axis.Z)
-print("faces_z:", len(faces_z))
+print("Počet ploch na ose Z:", len(faces_z))
 
+# 3. Ladění: Výběr hran typu CIRCLE z těchto ploch
+# GeomType.CIRCLE patří hranám (Edge), nikoliv plochám (Face).
 top_hole_edges = faces_z.edges().filter_by(GeomType.CIRCLE)
-print("top_hole_edges:", len(top_hole_edges))
+print("Počet nalezených kruhových hran:", len(top_hole_edges))
+
+# 4. Zobrazení v OCP Vieweru (poloprůhledný model + zvýrazněné hrany)
+show(part, top_hole_edges, names=["model", "vybrane_hrany"], alphas=[0.5, 1.0])
 ```
 
 Varianta B — chci plochy, které obsahují díry (inner wires):
 ```python
 from build123d import *
+from ocp_vscode import show
 
+# 1. Vytvoření testovacího dílu (předpoklad pro funkčnost)
+with BuildPart() as p:
+    Box(100, 50, 10)
+    with Locations((0, 0, 0)):
+        Cylinder(radius=10, height=20, mode=Mode.SUBTRACT)
+part = p.part
+
+# 2. Výběr ploch kolmých k ose Z
 faces_z = part.faces().filter_by(Axis.Z)
-faces_with_holes = faces_z.filter_by(lambda f: len(f.inner_wires()) > 0)
-print("faces_with_holes:", len(faces_with_holes))
+
+# 3. Ladění: Filtrování ploch, které mají vnitřní dráty (díry)
+# Lambda funkce vrací True, pokud seznam f.inner_wires() není prázdný.
+faces_with_holes = faces_z.filter_by(lambda f: f.inner_wires())
+print("Počet ploch s dírami:", len(faces_with_holes))
+
+# 4. Zobrazení výsledku výběru
+show(part, faces_with_holes, names=["model", "plochy_s_dirami"], alphas=[0.3, 1.0])
 ```
 
 > Tip: při ladění selektorů vždy začni `print(len(...))` a když si nejsi jistý,
@@ -262,14 +309,29 @@ Proč:
 Umisťování prvků (location contexts) + bulk operace:
 ```python
 from build123d import *
+from ocp_vscode import show
 
-with BuildPart():
-    # rozmístění 2x2 objektů na aktivní rovině
-    with GridLocations(x_spacing=5, y_spacing=5, x_count=2, y_count=2):
+# 1. Definice parametrů (v dokumentaci zdůrazněno jako Best Practice)
+radius, height = 0.5, 2.0
+
+with BuildPart() as p:
+    # 2. Vytvoření základního tělesa
+    Box(10, 10, 2)
+    
+    # 3. Zachycení lokací pomocí "as locs" pro pozdější použití
+    with GridLocations(x_spacing=5, y_spacing=5, x_count=2, y_count=2) as locs:
+        # V Builder módu Sphere automaticky přibude k rozpracovanému dílu
         Sphere(1)
 
-# vektorizované operace (efektivní pro hodně děr / řezů)
-part -= [loc * Cylinder(radius, height) for loc in locations]
+# 4. Extrakce vytvořeného tělesa z builderu do proměnné pro Algebra mód
+part = p.part
+
+# 5. Vektorizovaná operace v Algebra módu (nyní funkční)
+# Využíváme lokace uložené v proměnné 'locs'
+part -= [loc * Cylinder(radius, height) for loc in locs.locations]
+
+# Zobrazení výsledku (vyžaduje OCP CAD Viewer)
+show(part)
 ```
 
 ---
@@ -291,10 +353,26 @@ Nesnažit se vše modelovat od nuly.
 Export / import reference:
 ```python
 from build123d import *
+from ocp_vscode import show
 
-export_step(part, "model.step")  # CAD exchange / CAM
-export_stl(part, "print.stl")    # 3D tisk (tesselace!)
-svg_data = import_svg("profile.svg")
+# 1. Vytvoření geometrie (Algebra mód)
+part = Box(10, 10, 10) # Definice tělesa (krychle)
+
+# 2. Zobrazení v OCP Vieweru
+# Tento příkaz vykreslí objekt v 3D okně VS Code
+show(part, names=["moje_krychle"]) 
+
+# 3. Exporty (vytvoří soubory v pracovním adresáři)
+export_step(part, "model.step")  # Přesný přenos pro CAD systémy
+export_stl(part, "print.stl")    # Aproximace sítě pro 3D tisk
+
+# 4. Import (vyžaduje existující soubor "profile.svg" ve složce)
+# svg_data bude obsahovat seznam drátů (Wires) nebo ploch (Faces)
+try:
+    svg_data = import_svg("profile.svg")
+    show(svg_data, names=["svg_import"]) # Zobrazí i importovaná 2D data
+except ValueError:
+    print("Soubor profile.svg nebyl nalezen, import přeskočen.")
 ```
 
 ---
@@ -314,11 +392,19 @@ svg_data = import_svg("profile.svg")
 ## 9) Compatibility / Verze (krátce)
 
 Build123d se rychle vyvíjí. Pokud snippet přestane fungovat:
-- zkontroluj verzi:
+- zkontroluj verzi (Python – spolehlivé, bere z nainstalovaných metadat):
 ```python
-import build123d
-print(getattr(build123d, "__version__", "unknown"))
+import importlib.metadata as md
+print(md.version("build123d"))
 ```
+
+- zkontroluj verzi (terminál):
+```bash
+pip show build123d
+```
+
+> Pozn.: `build123d.__version__` může fungovat, ale nemusí být vždy k dispozici / přesné.
+
 - zkontroluj aktuální docs: https://build123d.readthedocs.io
 - počítej s tím, že existují různé vrstvy API (např. `Box(...)` vs `Solid.make_box(...)`)
   a že helpery/aliasy se mohou časem upřesňovat (`Pos`, `Rot`, `GridLocations`, ...)
