@@ -1,7 +1,6 @@
-# build123d – best practices (poznámky)
+# build123d – Osobní Poznámky & Best Practices Cheat Sheet
 
-Tyto poznámky jsou moje shrnutí při studiu build123d. Ber je jako pracovní „cheat sheet“,
-ne jako oficiální dokumentaci.
+Tyto poznámky jsou moje shrnutí při studiu build123d. Nejde o oficiální dokumentaci!
 
 Rychlá definice (ať je jasné, o čem mluvím):
 - build123d je parametrický CAD framework v Pythonu pro 2D/3D modelování.
