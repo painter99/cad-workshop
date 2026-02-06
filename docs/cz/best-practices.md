@@ -39,6 +39,7 @@ Požadavky:
 
 Instalace:
 ```bash
+ext install bernhard-42.ocp-cad-viewer # instalace rozšíření OCP CAD Viewer do VS Code
 python -m venv .venv
 # aktivace venv: .venv\Scripts\activate (Win) nebo source .venv/bin/activate
 pip install --upgrade pip
