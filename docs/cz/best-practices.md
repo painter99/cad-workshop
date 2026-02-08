@@ -39,21 +39,40 @@ Požadavky:
 - Python 3.10–3.13 (dle aktuální dokumentace)
 - VS Code (doporučený editor pro integraci s OCP CAD Viewer)
 
-Instalace:
+Instalace: 
+
+Pro správné fungování postupuj podle těchto kroků:
+
+1. Rozšíření pro VS Code
+
+Otevři příkazovou paletu (Ctrl+P) a postupně vlož a potvrď tyto příkazy:
+
 ```bash
-# 1. Rozšíření pro VS Code (KLÍČOVÉ)
 ext install bernhard-42.ocp-cad-viewer
-
-# 2. Python environment
-python -m venv .venv
-# aktivace: .venv\Scripts\activate (Win) nebo source .venv/bin/activate (Linux/Mac)
-
-# 3. Závislosti
-pip install --upgrade pip
-pip install build123d
+ext install ms-python.python
 ```
 
-Sanity check (rychle ověřím, že import funguje a něco se vykreslí/vypíše):
+2. Nastavení prostředí a instalace knihoven
+
+V terminálu v adresáři projektu:
+
+```bash
+# Vytvoření virtuálního prostředí
+python -m venv .venv
+
+# Aktivace prostředí podle OS: 
+# pro Windows
+.venv\Scripts\activate
+
+# pro Linux/macOS
+source .venv/bin/activate
+
+# Aktualizace pip a instalace CAD knihoven
+pip install --upgrade pip
+pip install build123d ocp-vscode
+```
+3. Ověření funkčnosti (Sanity Check). Vytvoř soubor `test.py`, vlož do něj následující kód a spusť jej.
+
 ```python
 from build123d import *
 from ocp_vscode import show
@@ -68,6 +87,10 @@ print(box.show_topology(limit_class="Face"))
 # Bez tohoto příkazu kód proběhne, ale okno prohlížeče zůstane prázdné
 show(box, names=["sanity_box"])
 ```
+
+Co by se mělo stát:
+- V terminálu vidím textový výpis ploch (Faces) mého boxu.
+- V pravém panelu VS Code se automaticky otevře okno **OCP CAD Viewer** s 3D modelem.
 
 > **Tip na setup:** Na začátku každého souboru si dávám blok parametrů (hlavní rozměry, jednotky, tolerance).
 > Změny jsou pak „jedním místem“ a model se lépe refaktoruje.
