@@ -4,10 +4,10 @@
 [![Build123d](https://img.shields.io/badge/build123d-0.10.0-orange.svg)](https://build123d.readthedocs.io/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-**Parametrické CAD modelování v Pythonu | Code‑first přístup**
+## Parametrické CAD modelování v Pythonu | Code‑first přístup
 
-> Osobní pracovna pro experimenty s frameworkem **build123d**. 
-> Místo manuálního kreslení se definují tvary pomocí kódu. 
+> Osobní pracovna pro experimenty s frameworkem **build123d**.
+> Místo manuálního kreslení se definují tvary pomocí kódu.
 
 ## Účel a obsah
 
@@ -29,13 +29,13 @@ Detailní popis mého workflow a technické poznámky jsem shrnul do samostatné
 
 Jádrem je **BREP** (Boundary Representation) workflow postavené na OpenCascade, což zaručuje matematickou přesnost geometrie.
 
-| Kategorie | Nástroj |
-|-----------|---------|
-| **Jazyk** | Python 3.10+ |
-| **Framework** | [build123d](https://github.com/gumyr/build123d) |
-| **Editor** | VS Code + OCP CAD Viewer |
+| Kategorie      | Nástroj                                                       |
+| -------------- | ------------------------------------------------------------- |
+| **Jazyk**      | Python 3.10+                                                  |
+| **Framework**  | [build123d](https://github.com/gumyr/build123d)               |
+| **Editor**     | VS Code + OCP CAD Viewer                                      |
 | **AI Support** | LLMs (např. t3.chat) jako "pair-programmer" pro prototypování |
 
 ---
 
-*Tento repozitář slouží jako studijní materiál a osobní archiv. Postaveno na skvělé práci komunity kolem [build123d docs](https://build123d.readthedocs.io).*
+_Tento repozitář slouží jako studijní materiál a osobní archiv. Postaveno na skvělé práci komunity kolem [build123d docs](https://build123d.readthedocs.io)._
