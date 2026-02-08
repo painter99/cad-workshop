@@ -7,7 +7,7 @@
 **Parametrické CAD modelování v Pythonu | Code‑first přístup**
 
 > Osobní pracovna pro experimenty s frameworkem **build123d**. 
-> Místo manuálního kreslení se definují tvary pomocí kódu, který slouží jako jediný zdroj pravdy.
+> Místo manuálního kreslení se definují tvary pomocí kódu. 
 
 ## Účel a obsah
 
