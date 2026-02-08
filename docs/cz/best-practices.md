@@ -833,4 +833,4 @@ base_vertices = model.vertices().group_by(Axis.Z)[0]
 
 ---
 
-**Konec poznámek.** Pravidelně aktualizuji při objevování nových patterns.
+**Konec poznámek.** Dokumentaci aktualizuji při zjištění nových informací.
