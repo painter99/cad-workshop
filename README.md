@@ -1,20 +1,34 @@
 # CAD Workshop
 
-Experimentování s parametrickým CAD přes Python a **build123d**. Toto repo je vedené filosofií **code‑first**: zdrojem pravdy je kód, exporty jsou pouze výstupy.
+[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
+[![Build123d](https://img.shields.io/badge/build123d-0.10.0-orange.svg)](https://build123d.readthedocs.io/)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-## Proč build123d (motivace a cíle)
+**Parametrické CAD modelování v Pythonu | Code‑first přístup**
 
-Tento workshop vznikl z kombinace praktické potřeby a chuti učit se věci „správně“. Můj přechod od klasického klikání v GUI k Pythonu má několik důvodů:
+> Osobní pracovna pro experimenty s frameworkem **build123d**. 
+> Kód zde není jen nástroj, ale **zdroj pravdy** — exporty jsou pouze vygenerované výstupy.
 
-- **Efektivita a rychlost (AI Synergy):** U mnoha tvarů mi stačí popsat záměr přirozeným jazykem AI modelu, nechat vygenerovat základ kódu a ten následně iteračně ladit. Tento proces je pro mě u mnoha dílů řádově rychlejší a méně namáhavý než manuální kreslení ve [FreeCADu](https://www.freecad.org/index.php?lang=cs). Tento proces popisuji detailněji v sekci [ai-assisted-workflow](docs/cz/ai-assisted-workflow.md), zatímco konkrétní techniky pro psaní kódu shrnuje můj cheat sheet [best-practices](docs/cz/best-practices.md).
+## Proč modelovat kódem (motivace a cíle)
 
-- **Python synergie:** Protože Python používám ve svém hlavním projektu [ai-workshop](https://github.com/painter99/ai-workshop), dává mi smysl využít stejný jazyk i pro CAD modelování. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
-- **Kód jako „Single Source of Truth“:**
+Tento workshop jsem vytvořil z praktické potřeby přechodu od klasického klikacího CADu z těchto důvodů:
+
+### 1. Rychlost návrhu díky AI
+Pro mnoho dílů stačí popsat záměr přirozeným jazykem, nechat vygenerovat kostru kódu a iterativně dolaďovat. U mnoha dílů je tento proces řádově rychlejší než manuální kreslení.
+
+📖 Popis workflow: [AI Assisted Workflow](docs/cz/ai-assisted-workflow.md)  
+📋 Praktické tipy a cheat sheet: [Best Practices](docs/cz/best-practices.md)
+
+### 2. Python ekosystém
+- Protože Python používám ve svém hlavním projektu [ai-workshop](https://github.com/painter99/ai-workshop), dává mi smysl využít stejný jazyk i pro CAD modelování. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
+
+### 3. CAD-as-code: Kód jako jediný zdroj pravdy
   - **Verzování:** V Gitu přesně vidím evoluci modelu a historii změn.
   - **Parametrizace:** Změna rozměrů je otázkou úpravy proměnné, nikoliv překreslování modelu.
   - **Automatizace:** Možnost skriptovat exporty a generovat varianty bez otevírání editoru.
+  - **Testování:** Automatické ověření rozměrů, objemu nebo kolizí pomocí jednoduchých skriptů.
+  - **Udržovatelnost**: Díky logické struktuře je model srozumitelný a snadno upravitelný i po delší pauze.
 
-Použití **BREP** (OpenCascade) pod kapotou znamená přesné inženýrské CAD workflow.
 
 ## Struktura a navigace
 
@@ -26,10 +40,15 @@ Použití **BREP** (OpenCascade) pod kapotou znamená přesné inženýrské CAD
 
 ## Nástroje a technologie
 
-- **Jazyk:** Python 3.x
-- **Jádro:** build123d
-- **Editor:** VS Code + **OCP CAD Viewer** (nezbytné pro live náhled kódu)
-- **AI Asistence:** Využití LLMs pro generování a iteraci prototypového CAD kódu
+Jádrem je **BREP** (Boundary Representation) workflow postavené na OpenCascade, což zaručuje matematickou přesnost na rozdíl od meshových modelářů.
+
+| Kategorie | Nástroj |
+|-----------|---------|
+| **Jazyk** | Python 3.10+ |
+| **Framework** | [build123d](https://github.com/gumyr/build123d) |
+| **Editor** | VS Code |
+| **AI** | LLMs (např. t3.chat) jako "pair-programmer" pro prototypování |
 
 ---
-*Tento repozitář je osobní workshop pro CAD modelování postavený na: [build123d.readthedocs.io](https://build123d.readthedocs.io/en/latest/), [gumyr/build123d](https://github.com/gumyr/build123d)*
+
+*Tento repozitář slouží jako studijní materiál a osobní archiv. Postaveno na skvělé práci komunity kolem [build123d docs](https://build123d.readthedocs.io).*
