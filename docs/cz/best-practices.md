@@ -1,6 +1,6 @@
 # build123d – Osobní Poznámky & Best Practices Cheat Sheet
 
-Tyto poznámky jsou moje shrnutí při studiu build123d. Nejde o oficiální dokumentaci!
+Tyto poznámky jsou moje shrnutí při studiu build123d. **Nejde o oficiální dokumentaci!**
 
 Rychlá definice (ať je jasné, o čem mluvím):
 - build123d je parametrický CAD framework v Pythonu pro 2D/3D modelování.
@@ -28,7 +28,7 @@ Testováno s:
 - [6) Sestavy a mechanismy](#6-sestavy-a-mechanismy)
 - [7) Export a Ekosystém](#7-export-a-ekosystém)
 - [8) Struktura projektu](#8-struktura-projektu-pro-verzování)
-- [9) Nástroje](#9-nástroje-workflow)
+- [9) AI-Assisted Workflow a Nástroje](#9-ai-assisted-workflow-a-nástroje)
 - [10) Compatibility / Verze](#10-compatibility--verze-krátce)
 
 ---
@@ -99,8 +99,21 @@ Co by se mělo stát:
 
 ## 1) Kontext: proč CAD-as-code
 
+### Motivace a cíle
+Tento přístup jsem zvolil z praktické potřeby přechodu od klasického klikacího CADu z těchto důvodů:
+
+1. **Rychlost návrhu díky AI:** Pro mnoho dílů stačí popsat záměr přirozeným jazykem, nechat vygenerovat kostru kódu a iterativně dolaďovat. U mnoha dílů je tento proces řádově rychlejší než manuální kreslení.
+2. **Python ekosystém:** Dává smysl využít stejný jazyk i pro CAD modelování. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
+3. **Kód jako jediný zdroj pravdy:**
+   - **Verzování:** V Gitu přesně vidím evoluci modelu a historii změn (diffy v kódu, ne v binárních souborech).
+   - **Parametrizace:** Změna rozměrů je otázkou úpravy proměnné, nikoliv překreslování modelu.
+   - **Automatizace:** Možnost skriptovat exporty a generovat varianty bez otevírání editoru.
+   - **Testování:** Automatické ověření rozměrů, objemu nebo kolizí pomocí jednoduchých skriptů.
+   - **Udržovatelnost:** Díky logické struktuře je model srozumitelný a snadno upravitelný i po delší pauze.
+
+### Shrnutí benefitů
 Co mi CAD-as-code dává:
-- verzování modelu v Gitu (diffy v kódu, ne v binárních souborech)
+- verzování modelu v Gitu
 - hromadná automatizace (generování variant z parametrů)
 - testovatelnost (rozměry, clearance, pravidla)
 - precizní topologická kontrola (programatický přístup k hranám/plochám)
@@ -627,13 +640,33 @@ def create_bracket(width: float, height: float, thickness: float = 5.0):
 
 ---
 
-## 9) Nástroje (workflow)
+## 9) AI-Assisted Workflow a Nástroje
 
+Můj přístup k experimentování kombinuje lidský záměr a rychlost generativní AI. Tento proces nejčastěji využívám v `sandbox/` pro rychlé prototypování:
+
+1.  **Záměr a vstup:** Slovně definuji tvar a technické parametry, případně modelu poskytnu jednoduchý nákres či výkres.
+2.  **AI Generování:** Nechám LLM připravit základní skript v build123d. Generování kódu je pro AI mnohem přirozenější a přesnější než snaha suplovat vizuální klikání v GUI.
+3.  **Okamžitá validace:** Díky **OCP CAD Vieweru** ve VS Code vidím geometrii okamžitě po spuštění skriptu.
+4.  **Iterace a Export:** Rychle doladím detaily (např. tolerance, sražení hran) a jakmile model sedí, skript automaticky vygeneruje finální STL pro 3D tisk.
+
+### Nástroje pro AI asistenci (Experimentální)
+
+Sleduji možnosti, jak zapojit AI agenty přímo do procesu tvorby. Zajímavým kandidátem je **[VibeCAD](https://github.com/rawwerks/vibecad)** (dostupný na [MCP Market](https://mcpmarket.com/tools/skills/build123d-cad-modeling)).
+
+Tato sada nástrojů umožňuje Claudovi vystupovat v roli **strojního inženýra** se specializovanou znalostí build123d. Cílem je zrychlit "rapid prototyping" díky těmto schopnostem:
+
+- **Pokročilá geometrie:** Tvorba složitých 3D těles, booleovské operace a parametrické sestavy (bez složitého nastavování díky `uv`).
+- **Průmyslové exporty:** Generování výstupů přímo do formátů STEP, STL a GLB.
+- **Specializované knihovny:** Přímé využití hotových modulů pro ozubená kola, závity a spojovací materiál.
+
+*Poznámka: Jde o externí tooling třetí strany, který zatím pouze mapuji pro budoucí integraci do workflow.*
+
+### Základní nástroje (Standardní)
 - **VS Code + OCP CAD Viewer** – rychlý náhled + inspekce topologie (interaktivní 3D)
 - **[t3.chat](https://t3.chat/)** – pro AI-Assisted Workflow
 - **Jupyter** – iterace po malých krocích (výborné pro prototyping)
 
-**Testování & ladění:**
+### Testování & ladění
 - **pytest** – automatické testy (bbox, volume, počet prvků)
 - **Visual debug** – VS Code + OCP CAD Viewer, krokování kódu
 - **Co testovat:** rozměry, clearances, počet děr, objem/mass
