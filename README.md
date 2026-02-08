@@ -35,7 +35,7 @@ Pro mnoho dílů stačí popsat záměr přirozeným jazykem, nechat vygenerovat
 - 📂 **[docs/](docs/)** – Dokumentace, metodika, AI workflow a vizuální výstupy.
 - 📂 **[examples/](examples/)** – Izolované, čisté ukázky konkrétních funkcí.
 - 📂 **[projects/](projects/)** – Komplexnější modely a sestavy (assemblies).
-- 📂 **[sandbox/](sandbox/)** – "Pískoviště" pro rychlé experimenty.
+- 📂 **[sandbox/](sandbox/)** – Prostor pro rychlé experimenty.
 - 📂 **[exports/](exports/)** – Výstupní soubory (STL, STEP).
 
 ## Nástroje a technologie
