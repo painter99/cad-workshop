@@ -29,14 +29,13 @@ Pro mnoho dílů stačí popsat záměr přirozeným jazykem, nechat vygenerovat
   - **Testování:** Automatické ověření rozměrů, objemu nebo kolizí pomocí jednoduchých skriptů.
   - **Udržovatelnost**: Díky logické struktuře je model srozumitelný a snadno upravitelný i po delší pauze.
 
+## Struktura repozitáře
 
-## Struktura a navigace
-
-- 📂 **[docs/](docs/)** – Dokumentace, metodika, AI workflow a vizuální výstupy.
-- 📂 **[examples/](examples/)** – Izolované, čisté ukázky konkrétních funkcí.
-- 📂 **[projects/](projects/)** – Komplexnější modely a sestavy (assemblies).
-- 📂 **[sandbox/](sandbox/)** – Prostor pro rychlé experimenty.
-- 📂 **[exports/](exports/)** – Výstupní soubory (STL, STEP).
+- 📂 **[docs/](docs/)** – Dokumentace, metodika, vizuální výstupy a poznámky.
+- 📂 **[examples/](examples/)** – **Ukázky.** Jednoduché skripty demonstrující konkrétní funkce.
+- 📂 **[projects/](projects/)** – **Reálné modely.** Komplexnější sestavy a hotové díly.
+- 📂 **[sandbox/](sandbox/)** – Prostor pro rychlé experimenty a prototypy.
+- 📂 **[exports/](exports/)** – Vygenerované výstupy (STL pro 3D tisk, STEP pro CNC).
 
 ## Nástroje a technologie
 
