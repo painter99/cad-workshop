@@ -7,27 +7,15 @@
 **Parametrické CAD modelování v Pythonu | Code‑first přístup**
 
 > Osobní pracovna pro experimenty s frameworkem **build123d**. 
-> Kód zde není jen nástroj, ale **zdroj pravdy** — exporty jsou pouze vygenerované výstupy.
+> Místo manuálního kreslení zde definuji tvary pomocí kódu, který slouží jako jediný zdroj pravdy.
 
-## Proč modelovat kódem (motivace a cíle)
+## O projektu
 
-Tento workshop jsem vytvořil z praktické potřeby přechodu od klasického klikacího CADu z těchto důvodů:
+Tento repozitář vznikl z potřeby opustit limity klasického "klikacího" CADu. Cílem je využít sílu Pythonu a AI k tvorbě modelů, které jsou plně parametrické, snadno verzovatelné v Gitu a automatizovatelné. Exporty do STL nebo STEP jsou zde chápány pouze jako vedlejší produkt kompilace, nikoliv jako zdrojová data.
 
-### 1. Rychlost návrhu díky AI
-Pro mnoho dílů stačí popsat záměr přirozeným jazykem, nechat vygenerovat kostru kódu a iterativně dolaďovat. U mnoha dílů je tento proces řádově rychlejší než manuální kreslení.
+Detailní popis mého workflow, včetně zapojení umělé inteligence do procesu návrhu, jsem shrnul do samostatného dokumentu:
 
-📖 Popis workflow: [AI Assisted Workflow](docs/cz/ai-assisted-workflow.md)  
-📋 Praktické tipy a cheat sheet: [Best Practices](docs/cz/best-practices.md)
-
-### 2. Python ekosystém
-- Protože Python používám ve svém hlavním projektu [ai-workshop](https://github.com/painter99/ai-workshop), dává mi smysl využít stejný jazyk i pro CAD modelování. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
-
-### 3. CAD-as-code: Kód jako jediný zdroj pravdy
-  - **Verzování:** V Gitu přesně vidím evoluci modelu a historii změn.
-  - **Parametrizace:** Změna rozměrů je otázkou úpravy proměnné, nikoliv překreslování modelu.
-  - **Automatizace:** Možnost skriptovat exporty a generovat varianty bez otevírání editoru.
-  - **Testování:** Automatické ověření rozměrů, objemu nebo kolizí pomocí jednoduchých skriptů.
-  - **Udržovatelnost**: Díky logické struktuře je model srozumitelný a snadno upravitelný i po delší pauze.
+👉 **[Metodika, Best Practices & AI Workflow](docs/cz/best-practices.md)**
 
 ## Struktura repozitáře
 
@@ -39,14 +27,14 @@ Pro mnoho dílů stačí popsat záměr přirozeným jazykem, nechat vygenerovat
 
 ## Nástroje a technologie
 
-Jádrem je **BREP** (Boundary Representation) workflow postavené na OpenCascade, což zaručuje matematickou přesnost na rozdíl od meshových modelářů.
+Jádrem je **BREP** (Boundary Representation) workflow postavené na OpenCascade, což zaručuje matematickou přesnost geometrie.
 
 | Kategorie | Nástroj |
 |-----------|---------|
 | **Jazyk** | Python 3.10+ |
 | **Framework** | [build123d](https://github.com/gumyr/build123d) |
-| **Editor** | VS Code |
-| **AI** | LLMs (např. t3.chat) jako "pair-programmer" pro prototypování |
+| **Editor** | VS Code + OCP CAD Viewer |
+| **AI Support** | LLMs (např. t3.chat) jako "pair-programmer" pro prototypování |
 
 ---
 
