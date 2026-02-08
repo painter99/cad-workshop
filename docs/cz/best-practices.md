@@ -103,7 +103,7 @@ Co by se mělo stát:
 Tento přístup jsem zvolil z praktické potřeby přechodu od klasického klikacího CADu z těchto důvodů:
 
 1. **Rychlost návrhu díky AI:** Pro mnoho dílů stačí popsat záměr přirozeným jazykem, nechat vygenerovat kostru kódu a iterativně dolaďovat. U mnoha dílů je tento proces řádově rychlejší než manuální kreslení.
-2. **Python ekosystém:** Dává smysl využít stejný jazyk i pro CAD modelování. Je to ideální cesta, jak spojit programování s něčím hmatatelným.
+2. **Python a hmatatelný výsledek:** Spojení programovacího jazyka s CAD modelováním představuje přirozený most mezi světem logiky a fyzické tvorby. Kód zde přestává být jen abstraktním zápisem na obrazovce a stává se „stavebním materiálem“, který přímo definuje prostor a tvar. Kombinace programování a konstruování dává psaní skriptů hlubší praktický rozměr – každá změna v algoritmu má okamžitý a viditelný dopad, který lze následně převést do reálného objektu. Pro začínající tvůrce i zkušené inženýry to může být přirozený způsob, jak propojit digitální návrh s fyzickým výsledkem.
 3. **Kód jako jediný zdroj pravdy:**
    - **Verzování:** V Gitu přesně vidím evoluci modelu a historii změn (diffy v kódu, ne v binárních souborech).
    - **Parametrizace:** Změna rozměrů je otázkou úpravy proměnné, nikoliv překreslování modelu.
