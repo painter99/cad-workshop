@@ -9,11 +9,11 @@
 > Osobní pracovna pro experimenty s frameworkem **build123d**. 
 > Místo manuálního kreslení zde definuji tvary pomocí kódu, který slouží jako jediný zdroj pravdy.
 
-## O projektu
+## Účel a obsah
 
-Tento repozitář vznikl z potřeby opustit limity klasického "klikacího" CADu. Cílem je využít sílu Pythonu a AI k tvorbě modelů, které jsou plně parametrické, snadno verzovatelné v Gitu a automatizovatelné. Exporty do STL nebo STEP jsou zde chápány pouze jako vedlejší produkt kompilace, nikoliv jako zdrojová data.
+Tento repozitář slouží jako **kolekce návodů, best practices a experimentů**. Jde o živou znalostní bázi pro práci s frameworkem build123d, kde shromažďuji funkční kódy, exporty a metodiku pro efektivní učení principů "CAD-as-code" s podporou AI.
 
-Detailní popis mého workflow, včetně zapojení umělé inteligence do procesu návrhu, jsem shrnul do samostatného dokumentu:
+Detailní popis mého workflow a technické poznámky jsem shrnul do samostatného dokumentu:
 
 👉 **[Metodika, Best Practices & AI Workflow](docs/cz/best-practices.md)**
 
