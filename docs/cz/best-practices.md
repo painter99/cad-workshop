@@ -692,30 +692,25 @@ def create_bracket(width: float, height: float, thickness: float = 5.0):
 
 ## 9) AI-Assisted Workflow a Nástroje
 
-Můj přístup k experimentování kombinuje lidský záměr a rychlost generativní AI. Tento proces nejčastěji využívám v `sandbox/` pro rychlé prototypování:
+Můj přístup k modelování kombinuje vlastní záměr a rychlost generativní AI. Celý proces dělím na logickou přípravu a samotné psaní kódu, kde využívám dva nástroje paralelně:
 
-1. **Záměr a vstup:** Slovně definuji tvar a technické parametry, případně modelu poskytnu jednoduchý nákres či výkres.
-2. **AI Generování:** Nechám LLM připravit základní skript v build123d. Generování kódu je pro AI mnohem přirozenější a přesnější než snaha suplovat vizuální klikání v GUI.
-3. **Okamžitá validace:** Díky **OCP CAD Vieweru** ve VS Code vidím geometrii okamžitě po spuštění skriptu.
-4. **Iterace a Export:** Rychle doladím detaily (např. tolerance, sražení hran) a jakmile model sedí, skript automaticky vygeneruje finální STL pro 3D tisk.
+1.  **Příprava a logika (t3.chat):** Tady řeším, jak by měl model vypadat, jaké budou rozměry a jak je logicky poskládat (např. „potřebuji krabičku s víkem na panty a otvorem pro kabel“). Modely v t3.chat mi pomáhají si ujasnit rozměrové vazby a matematiku dřív, než začnu psát kód.
+2.  **Psaní kódu (SemiShape):** Když vím, co chci stavět, jdu do SemiShape. Ten se stará o to, aby byl kód správně zapsaný pro build123d. Hlídá, aby byla geometrie parametrická (v proměnných) a aby výběry ploch a hran byly stabilní a při změně rozměrů se nerozbily.
+3.  **Vizuální kontrola:** Výsledek spouštím ve VS Code. Díky **OCP CAD Vieweru** hned vidím, jestli model odpovídá představě.
+4.  **Ladění:** Pokud něco nesedí, vracím se k t3.chat doladit logiku, nebo k SemiShape opravit zápis v kódu.
 
-### Nástroje pro AI asistenci (Experimentální)
+### Používané nástroje
 
-Sleduji možnosti, jak zapojit AI agenty přímo do procesu tvorby. Zajímavým kandidátem je **[VibeCAD](https://github.com/rawwerks/vibecad)** (dostupný na [MCP Market](https://mcpmarket.com/tools/skills/build123d-cad-modeling)).
+*   **[SemiShape](https://github.com/painter99/semishape)** – Můj vlastní asistent specializovaný přímo na build123d. Pomáhá mi s čistotou zápisu a správnou syntaxí frameworku.
+*   **[t3.chat](https://t3.chat/)** – Používám pro „přemýšlení“ nad modelem. Počítání rozměrů a plánování postupu, jak těleso postavit.
+*   **VS Code + OCP CAD Viewer** – Základní prostředí pro prohlížení a kontrolu 3D modelů v reálném čase.
+*   **Jupyter Notebooks** – Hodí se na rychlé vyzkoušení malého kousku kódu, než ho vložím do hlavního skriptu.
 
-Tato sada nástrojů umožňuje Claudovi vystupovat v roli **strojního inženýra** se specializovanou znalostí build123d. Cílem je zrychlit "rapid prototyping" díky těmto schopnostem:
+### Další možnosti (V pozorování)
 
-- **Pokročilá geometrie:** Tvorba složitých 3D těles, booleovské operace a parametrické sestavy (bez složitého nastavování díky `uv`).
-- **Průmyslové exporty:** Generování výstupů přímo do formátů STEP, STL a GLB.
-- **Specializované knihovny:** Přímé využití hotových modulů pro ozubená kola, závity a spojovací materiál.
+Zkouším i další nástroje, které by mohly proces urychlit:
 
-_Poznámka: Jde o externí tooling třetí strany, který zatím pouze mapuji pro budoucí integraci do workflow._
-
-### Základní nástroje (Standardní)
-
-- **VS Code + OCP CAD Viewer** – rychlý náhled + inspekce topologie (interaktivní 3D)
-- **[t3.chat](https://t3.chat/)** – pro AI-Assisted Workflow
-- **Jupyter** – iterace po malých krocích (výborné pro prototyping)
+*   **[VibeCAD](https://github.com/rawwerks/vibecad)** – Zajímavý doplněk pro AI agenty, který umí pracovat s hotovými díly (šrouby, profily) a rovnou exportovat STL nebo STEP soubory.
 
 ### Testování & ladění
 
