@@ -1,4 +1,4 @@
-"""Brush organizer: 250x55x35 block on 6 legs, six pockets with X-fill.
+"""Brush organizer: 250x55x35 block on 4 corner legs, six pockets with X-fill.
 
 Reads all parameters from specs/brush_organizer/spec.yaml.
 Entry point: build(spec) -> Part.
@@ -27,22 +27,16 @@ def load_spec() -> dict:
     return yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
 
 
-def _pocket_solid(pocket: dict, top_z: float, width_dim: float = None):
+def _pocket_solid(pocket: dict, top_z: float):
     """Cutting tool for one pocket, extruded downward from the top face."""
     depth = pocket["depth"]
     if pocket["shape"] == "circle":
         return Pos(pocket["x_position"], 0, top_z - depth / 2) * Cylinder(
             radius=pocket["diameter"] / 2, height=depth
         )
-    if pocket["shape"] == "slot_channel":
-        # open channel across the full width (Y), width along X
-        y_len = width_dim + 4  # overshoot for a clean cut through both faces
-        return Pos(pocket["x_position"], 0, top_z - depth / 2) * Box(
-            pocket["width"], y_len, depth
-        )
-    # rectangular slot: width along X, length along Y
+    # rectangular slot: along_x along the block (X), along_y across it (Y)
     return Pos(pocket["x_position"], 0, top_z - depth / 2) * Box(
-        pocket["width"], pocket["length"], depth
+        pocket["along_x"], pocket["along_y"], depth
     )
 
 
@@ -50,7 +44,7 @@ def _pocket_span(pocket: dict) -> float:
     """Rib length needed to span the pocket."""
     if pocket["shape"] == "circle":
         return pocket["diameter"]
-    return (pocket["width"] ** 2 + pocket["length"] ** 2) ** 0.5
+    return (pocket["along_x"] ** 2 + pocket["along_y"] ** 2) ** 0.5
 
 
 def _x_ribs(pocket: dict, rib_w: float, rib_t: float, z_center: float):
@@ -60,6 +54,20 @@ def _x_ribs(pocket: dict, rib_w: float, rib_t: float, z_center: float):
         Pos(pocket["x_position"], 0, z_center) * Rot(0, 0, 45) * rib,
         Pos(pocket["x_position"], 0, z_center) * Rot(0, 0, -45) * rib,
     ]
+
+
+def _leg_positions(spec: dict, pockets: list) -> list:
+    """Leg centers: 4 near the corners. The historical 6-leg layout added
+    two mid-length legs under the end pockets; kept only for spec count == 6."""
+    dims = spec["dimensions"]
+    inset = spec["features"]["legs"]["inset"]
+    lx = dims["length"] / 2 - inset
+    ly = dims["width"] / 2 - inset
+    positions = [(-lx, -ly), (-lx, ly), (lx, -ly), (lx, ly)]
+    if spec["features"]["legs"]["count"] == 6:
+        end_x = pockets[0]["x_position"]
+        positions += [(-end_x, 0), (end_x, 0)]
+    return positions
 
 
 def build(spec: dict):
@@ -84,32 +92,17 @@ def build(spec: dict):
         length, width, height, align=(Align.CENTER, Align.CENTER, Align.MIN)
     )
 
-    # Legs: 4 near corners + 2 under the end pockets (the small circles at
-    # the end pockets in the sketch are the legs seen from above).
-    inset = spec["features"]["legs"]["inset"]
-    lx = length / 2 - inset
-    ly = width / 2 - inset
-    end_x = pockets[0]["x_position"]
-    leg_positions = [
-        (-lx, -ly),
-        (-lx, ly),
-        (lx, -ly),
-        (lx, ly),
-        (-end_x, 0),
-        (end_x, 0),
-    ]
+    # Legs: per spec count (4 = corners only).
     leg = Cylinder(
         radius=leg_r, height=leg_h, align=(Align.CENTER, Align.CENTER, Align.MIN)
     )
-    part += [Pos(x, y, 0) * leg for x, y in leg_positions]
+    part += [Pos(x, y, 0) * leg for x, y in _leg_positions(spec, pockets)]
 
     # Pockets cut from the top face.
-    part -= [_pocket_solid(p, top_z, width) for p in pockets]
+    part -= [_pocket_solid(p, top_z) for p in pockets]
 
     # X-fill per pocket.
     for p in pockets:
-        if p["shape"] == "slot_channel":
-            continue  # channels keep a solid floor; X-fill applies to holes
         floor_z = top_z - p["depth"]
         remaining = floor_z - leg_h  # material between pocket floor and block bottom
         is_deep = remaining <= 5
@@ -125,7 +118,7 @@ def build(spec: dict):
             else:
                 below = Pos(
                     p["x_position"], 0, (leg_h + floor_z) / 2
-                ) * Box(p["width"], p["length"], remaining)
+                ) * Box(p["along_x"], p["along_y"], remaining)
             part -= below
             part += _x_ribs(p, rib_w, web_t, floor_z - web_t / 2)
         else:  # cradle: solid floor, X ridge rising inside the pocket

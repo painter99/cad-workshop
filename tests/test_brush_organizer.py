@@ -66,6 +66,14 @@ def test_validity(part):
     assert part.is_valid, "solid is not a valid closed BREP body"
 
 
+def test_single_body(part):
+    """Regression guard: the first M3 attempt passed validity while being
+    5 disconnected bodies (legs detached by the open quarters). The part
+    must be ONE connected solid."""
+    bodies = part.solids()
+    assert len(bodies) == 1, f"part has {len(bodies)} disconnected bodies"
+
+
 def test_legs(measured, spec):
     assert measured["leg_count"] == spec["features"]["legs"]["count"]
     assert measured["leg_diameter"] == pytest.approx(
@@ -97,7 +105,7 @@ def test_pocket_openings_positions_and_sizes(measured, spec):
         if p["shape"] == "circle":
             want.add((p["x_position"], p["diameter"], p["diameter"]))
         else:
-            want.add((p["x_position"], p["width"], p["length"]))
+            want.add((p["x_position"], p["along_x"], p["along_y"]))
     assert got == want, f"openings mismatch:\n got={sorted(got)}\nwant={sorted(want)}"
 
 
@@ -112,7 +120,7 @@ def test_pocket_depths(part, spec):
         if p["shape"] == "circle":
             wall_x = x + p["diameter"] / 2 + 2
         else:
-            wall_x = x + p["width"] / 2 + 2
+            wall_x = x + p["along_x"] / 2 + 2
         assert part.is_inside(
             Vector(wall_x, 0, mid_z)
         ), f"{p['id']}: no wall beside pocket at mid-depth (pocket too shallow?)"

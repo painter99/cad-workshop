@@ -1,10 +1,13 @@
 part: brush_organizer
 description: >
   Desk organizer for brushes (kartacky) and pastes. A 250x55x35 block standing
-  on 6 legs (5 mm tall), with six pockets of varying shape and depth on the
-  top face; under every pocket an X-shaped semi-open web instead of a solid
-  floor. Transcribed from a hand sketch and APPROVED by Pavel in chat
-  (2026-10-19), including the stated assumptions below.
+  on 4 corner legs (5 mm tall), with six pockets of varying shape and depth on
+  the top face; under the deep pockets an X-shaped semi-open web instead of a
+  solid floor (variant A) or an X ridge on a solid floor (variant B).
+  Transcribed from a hand sketch, corrected by Pavel in chat (2026-10-19):
+  rectangular pockets are 12x15 mm, 30 mm deep, centered in Y like the other
+  pockets (the earlier full-width channel reading was REJECTED); legs are
+  only the 4 corner ones.
 units: mm
 drawing: pending   # sketch photos not yet stored in repo
 
@@ -16,7 +19,7 @@ dimensions:
   leg_diameter: 5
 
 features:
-  # Six pockets, evenly spaced along X (approved proposal):
+  # Six pockets, evenly spaced along X:
   # x = -105, -63, -21, +21, +63, +105; all centered in Y.
   pockets:
     - id: P1
@@ -26,14 +29,14 @@ features:
       x_position: -105
     - id: P2
       shape: slot
-      width: 12           # along X
-      length: 30          # along Y - ASSUMPTION (not dimensioned in sketch)
+      along_x: 15        # 15 mm along the block ("15 mm na delku")
+      along_y: 12        # 12 mm across the block ("12 mm na sirku") - VETO?
       depth: 30
       x_position: -63
     - id: P3
       shape: slot
-      width: 15
-      length: 30          # ASSUMPTION
+      along_x: 15
+      along_y: 12
       depth: 30
       x_position: -21
     - id: P4
@@ -52,24 +55,26 @@ features:
       depth: 15
       x_position: 105
 
-  # Approved interpretation: under EVERY pocket the floor is not solid -
-  # an X-shaped web (two diagonal ribs, 4 mm wide, 3 mm thick) spanning the
-  # pocket, the four quarter sectors left OPEN through to the bottom face.
+  # X-fill interpretation (Pavel to pick A or B):
+  # A (web_floor): the pocket floor IS an X-shaped web (two diagonal ribs,
+  #   4 mm wide, 3 mm thick); the four quarter sectors stay OPEN through to
+  #   the bottom face. Applied to deep pockets only (see "under").
+  # B (cradle): every pocket has a solid floor at its depth; an X-shaped
+  #   ridge (4 mm wide, 3 mm tall) rises from the floor inside the pocket.
   x_fill:
-    under: all_pockets
+    style: web_floor     # variant A default; variant B overrides to "cradle"
+    under: deep_only     # deep = remaining floor <= 5 mm (P2, P3, P4, P5)
     rib_width: 4
     web_thickness: 3
-    open_quarters: true
 
-  # Approved layout: 4 legs near the corners + 2 at mid-length,
-  # inset 15 mm from the edges.
+  # Pavel's correction: only the 4 corner legs (the 2 mid-length legs are gone).
   legs:
-    count: 6
+    count: 4
     height: 5
     inset: 15
 
 tolerance: 0.2
 assumptions:       # explicit, veto-friendly (one-parameter changes)
-  - slot length along Y = 30 mm (sketch does not dimension it)
-  - X-web under all six pockets incl. the shallow end pockets
+  - slot orientation: 12 mm across the block (Y) x 15 mm along it (X) - VETO?
+  - X-web under deep pockets only (P2-P5); end pockets keep a solid floor (variant A)
   - leg inset 15 mm from edges
