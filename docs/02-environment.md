@@ -11,7 +11,7 @@
 python -m venv .venv
 source .venv/bin/activate
 pip install --upgrade pip
-pip install -e ".[dev]"
+pip install -r requirements.txt
 ```
 
 Installed packages:
@@ -43,4 +43,4 @@ Previews land in `exports/` and are not versioned (see `.gitignore`).
 
 ## Versioning note
 
-The build123d API changes between minor versions. Model code targets the pinned range in `pyproject.toml`; when upgrading, re-run the full test suite — the tests, not memory, decide whether the models still hold.
+The build123d API changes between minor versions. Model code targets the pinned range in `requirements.txt`; when upgrading, re-run the full test suite — the tests, not memory, decide whether the models still hold.
