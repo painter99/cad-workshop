@@ -30,6 +30,16 @@ def measured(part, spec):
     cyl = part.faces().filter_by(GeomType.CYLINDER)
     leg_faces = [f for f in cyl if f.radius * 2 == pytest.approx(dims["leg_diameter"], abs=0.01)]
     leg_height = leg_faces[0].bounding_box().size.Z if leg_faces else None
+    # use bounding-box centers: Face.center() of a trimmed cylinder is unreliable
+    leg_centers = (
+        [
+            (round((f.bounding_box().min.X + f.bounding_box().max.X) / 2, 2),
+             round((f.bounding_box().min.Y + f.bounding_box().max.Y) / 2, 2))
+            for f in leg_faces
+        ]
+        if leg_faces
+        else []
+    )
     top_z = bb.size.Z
     top_face = [
         f
@@ -45,6 +55,7 @@ def measured(part, spec):
         "height": bb.size.Z - leg_height,
         "leg_diameter": 2 * leg_faces[0].radius if leg_faces else None,
         "leg_count": len(leg_faces),
+        "leg_centers": leg_centers,
         "openings": openings,  # bounding boxes of the 6 pocket openings
         "volume": part.volume,
         "is_valid": bool(part.is_valid),
@@ -78,6 +89,17 @@ def test_legs(measured, spec):
     assert measured["leg_count"] == spec["features"]["legs"]["count"]
     assert measured["leg_diameter"] == pytest.approx(
         spec["dimensions"]["leg_diameter"], abs=0.01
+    )
+    # corner positions per spec inset (stability: legs almost flush in corners)
+    d = spec["dimensions"]
+    inset = spec["features"]["legs"]["inset"]
+    lx, ly = d["length"] / 2 - inset, d["width"] / 2 - inset
+    want = {
+        (round(sx * lx, 2), round(sy * ly, 2)) for sx in (-1, 1) for sy in (-1, 1)
+    }
+    assert set(measured["leg_centers"]) == want, (
+        f"leg positions mismatch:\n got={sorted(measured['leg_centers'])}\n"
+        f"want={sorted(want)}"
     )
 
 

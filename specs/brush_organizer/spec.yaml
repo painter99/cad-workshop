@@ -67,14 +67,15 @@ features:
     rib_width: 4
     web_thickness: 3
 
-  # Pavel's correction: only the 4 corner legs (the 2 mid-length legs are gone).
+  # Pavel's corrections: only the 4 corner legs; pushed almost flush into the
+  # corners for stability (leg edge 2.5 mm from the block edge).
   legs:
     count: 4
     height: 5
-    inset: 15
+    inset: 5              # leg CENTER distance from the block edges
 
 tolerance: 0.2
 assumptions:       # explicit, veto-friendly (one-parameter changes)
   - slot orientation: 12 mm across the block (Y) x 15 mm along it (X) - VETO?
   - X-web under deep pockets only (P2-P5); end pockets keep a solid floor (variant A)
-  - leg inset 15 mm from edges
+  - leg inset 5 mm from edges (leg edge 2.5 mm from the block edge) - stability per Pavel
