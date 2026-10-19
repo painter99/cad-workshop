@@ -1,0 +1,43 @@
+# Workflow: spec → model → test → preview → review
+
+The workshop runs a closed loop. Nothing is "done" because it was written confidently; it is done when the machine and a human both confirm it.
+
+## Stages
+
+### 1. Spec (human-approved, machine-readable)
+
+- Source: a drawing, sketch or verbal description from the requester.
+- The spec file `specs/<part>/spec.yaml` holds every dimension, tolerance, feature count and note.
+- **Gate:** the transcription is reviewed against the original drawing by a human before modeling starts. A misread drawing digit would otherwise be verified "correctly" by every downstream test.
+
+### 2. Model (build123d)
+
+- `models/<part>.py` reads parameters from `spec.yaml` — never hard-codes them, never relies on remembered values.
+- Modeling rules that keep models robust are in [docs/05-modeling-rules.md](05-modeling-rules.md).
+
+### 3. Tests (pytest)
+
+- One assertion per spec dimension: bounding box, volume, hole counts, validity, export round-trip.
+- A completeness test fails if any spec dimension has no matching assertion.
+- Details and limits: [docs/03-testing.md](03-testing.md).
+
+### 4. Preview (headless render)
+
+- The test suite renders PNG previews from the built model (several views) into `exports/`.
+- The preview is evidence for human review, not a substitute for it.
+
+### 5. Verification report and review
+
+- `specs/<part>/verification.md` records: drawing dimension → spec value → measured value → result.
+- A human compares the preview and the report against the original drawing. Only then is the part accepted.
+
+## Git discipline
+
+- Work happens on a branch; every push and merge requires explicit human approval.
+- CI must be green before merge; CI verifies code, the human verifies appearance.
+- The original drawing is versioned together with the spec, so history always shows which drawing a model was built against.
+
+## What this workflow deliberately does not do
+
+- It does not drive machines, robots or production equipment. It produces verified geometry and documentation.
+- It does not replace full GD&T inspection. Simplified geometric checks (positions, distances, counts) are covered; formal tolerance analysis is out of scope and labeled as such.

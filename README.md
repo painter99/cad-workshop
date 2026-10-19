@@ -1,41 +1,59 @@
 # CAD Workshop
 
-[![Python 3.10+](https://img.shields.io/badge/python-3.10+-blue.svg)](https://www.python.org/)
-[![Build123d](https://img.shields.io/badge/build123d-0.10.0-orange.svg)](https://build123d.readthedocs.io/)
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
+Headless parametric CAD workspace: models are built from written specs, verified by automated tests, and reviewed through generated previews. Built on [build123d](https://github.com/gumyr/build123d) (Python + OpenCascade), designed for AI-assisted modeling where the machine — not memory — proves correctness.
 
-## Parametrické CAD modelování v Pythonu | Code‑first přístup
+## Why code-first, headless
 
-> Osobní pracovna pro experimenty s frameworkem **build123d**.
-> Místo manuálního kreslení se definují tvary pomocí kódu.
+- **Code is the single source of truth.** Every model is a readable, versioned Python script. Geometry changes are diffs, not redraws.
+- **Verification over confidence.** Dimensions, volumes, topology and export integrity are checked by automated tests. A model is "done" when the tests pass, not when it looks plausible.
+- **No GUI required.** Modeling, testing, export and preview rendering all run headless. Interactive viewers are optional, never a dependency.
 
-## Účel a obsah
+## The core loop
 
-Tento repozitář slouží jako **kolekce návodů, best practices a experimentů**. Jde o živou znalostní bázi pro práci s frameworkem build123d, kde shromažďuji funkční kódy, exporty a metodiku pro efektivní učení principů "CAD-as-code" s podporou AI.
+```text
+spec (approved dimensions) → model (build123d) → tests (pytest) → previews (PNG) → human review
+```
 
-Detailní popis mého workflow a technické poznámky jsem shrnul do samostatného dokumentu:
+1. A drawing or sketch is transcribed into a machine-readable `spec.yaml` and **approved by a human** before any modeling starts.
+2. The model script reads parameters from the spec — never from memory or hard-coded magic numbers.
+3. Tests assert every dimension in the spec against the measured geometry, and a completeness check ensures no dimension is silently untested.
+4. Headless previews are rendered for visual review; a verification report compares drawing dimensions to measured values.
+5. Changes are reviewed as diffs and merged only after CI and human approval.
 
-👉 **[Metodika, Best Practices & AI Workflow](docs/cz/best-practices.md)**
+Details: [docs/01-workflow.md](docs/01-workflow.md), [docs/04-verification-workflow.md](docs/04-verification-workflow.md).
 
-## Struktura repozitáře
+## Repository map
 
-- 📂 **[docs/](docs/)** – Dokumentace, metodika, vizuální výstupy a poznámky.
-- 📂 **[examples/](examples/)** – **Ukázky.** Jednoduché skripty demonstrující konkrétní funkce.
-- 📂 **[projects/](projects/)** – **Reálné modely.** Komplexnější sestavy a hotové díly.
-- 📂 **[sandbox/](sandbox/)** – Prostor pro rychlé experimenty a prototypy.
-- 📂 **[exports/](exports/)** – Vygenerované výstupy (STL pro 3D tisk, STEP pro CNC).
+```text
+cad-workshop/
+├── README.md            # this file
+├── docs/                # workflow, environment, testing, verification, modeling rules
+│   └── legacy/          # original study notes (preserved, superseded)
+├── specs/               # one folder per part: drawing, spec.yaml, verification report
+├── models/              # build123d model scripts (read spec.yaml)
+├── tests/               # pytest suite: dimension, topology, validity, export checks
+├── examples/            # small scripts demonstrating specific build123d features
+└── exports/             # generated output (STEP/STL/PNG), not versioned
+```
 
-## Nástroje a technologie
+## Quick start
 
-Jádrem je **BREP** (Boundary Representation) workflow postavené na OpenCascade, což zaručuje matematickou přesnost geometrie.
+```bash
+python -m venv .venv && source .venv/bin/activate
+pip install -e ".[dev]"
+pytest                # run the verification suite
+```
 
-| Kategorie      | Nástroj                                                       |
-| -------------- | ------------------------------------------------------------- |
-| **Jazyk**      | Python 3.10+                                                  |
-| **Framework**  | [build123d](https://github.com/gumyr/build123d)               |
-| **Editor**     | VS Code + OCP CAD Viewer                                      |
-| **AI Support** | LLMs (např. t3.chat) jako "pair-programmer" pro prototypování |
+Environment details: [docs/02-environment.md](docs/02-environment.md).
 
----
+## Continuous integration
 
-_Tento repozitář slouží jako studijní materiál a osobní archiv. Postaveno na skvělé práci komunity kolem [build123d docs](https://build123d.readthedocs.io)._
+Every push runs the full test suite on GitHub Actions. CI is the single source of truth for code correctness; visual correctness is judged by a human against the original drawing. See [docs/03-testing.md](docs/03-testing.md).
+
+## Status
+
+Early stage. The first verified model is being built to prove the loop end-to-end before more parts are added.
+
+## License
+
+MIT — see [LICENSE](LICENSE).
