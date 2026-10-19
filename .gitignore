@@ -1,4 +1,4 @@
-# Virtuální prostředí
+# Virtual environments
 .venv/
 venv/
 env/
@@ -7,23 +7,26 @@ env/
 __pycache__/
 *.py[cod]
 
-# Tooling cache (volitelné, ale brzy užitečné)
+# Tooling cache
 .pytest_cache/
 .mypy_cache/
 .ruff_cache/
 
-# VS Code
+# Generated CAD output (rebuilt by tests/scripts, never versioned)
+exports/
+*.step
+*.stl
+*.3mf
+*.dxf
+
+# Editors / IDE
 .vscode/
-
-# Logy / temp
-*.log
-*.tmp
-
-# OS soubory
-.DS_Store
-Thumbs.db
-
-# IDE
 .idea/
 *.swp
 *.swo
+
+# Logs / temp / OS
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
