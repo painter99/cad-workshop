@@ -3,3 +3,4 @@ trimesh>=4.0
 matplotlib>=3.8
 pytest>=8.0
 pyyaml>=6.0
+pytest-github-actions-annotate-failures>=0.2
