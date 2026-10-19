@@ -4,13 +4,13 @@ Reads all parameters from specs/brush_organizer/spec.yaml.
 Entry point: build(spec) -> Part.
 
 X-fill styles (spec: features.x_fill.style):
-- "web_floor": the pocket floor IS an X-shaped web (two diagonal ribs);
-  the quarter sectors stay open below it, through to the bottom face.
-  Only applied to pockets whose remaining floor is thin (see "under").
+- "web_floor": the pocket floor IS an X of two diagonal ribs spanning the
+  FULL height from the block bottom face to the pocket floor (the crosses
+  sit at the lowest point of the block); the quarter sectors stay open
+  through to the bottom face. Each rib end extends rib_embed mm into the
+  wall for a solid union. Applied per x_fill.under ("all" / "deep_only").
 - "cradle": the pocket has a solid floor at its depth; an X-shaped ridge
   rises from the floor inside the pocket (a semi-open saddle).
-
-x_fill.under: "all" or "deep_only" (deep = remaining floor <= 5 mm).
 """
 
 from pathlib import Path
@@ -47,9 +47,11 @@ def _pocket_span(pocket: dict) -> float:
     return (pocket["along_x"] ** 2 + pocket["along_y"] ** 2) ** 0.5
 
 
-def _x_ribs(pocket: dict, rib_w: float, rib_t: float, z_center: float):
+def _x_ribs(pocket: dict, rib_w: float, rib_t: float, z_center: float,
+            rib_len: float = None):
     """Two diagonal ribs crossing in an X, centered on the pocket axis."""
-    rib = Box(_pocket_span(pocket), rib_w, rib_t)
+    length = rib_len if rib_len is not None else _pocket_span(pocket)
+    rib = Box(length, rib_w, rib_t)
     return [
         Pos(pocket["x_position"], 0, z_center) * Rot(0, 0, 45) * rib,
         Pos(pocket["x_position"], 0, z_center) * Rot(0, 0, -45) * rib,
@@ -86,6 +88,7 @@ def build(spec: dict):
     under = xf.get("under", "all")
     rib_w = xf["rib_width"]
     web_t = xf["web_thickness"]
+    rib_embed = xf.get("rib_embed", 2)
 
     # Block: base sits on top of the legs (Z = leg_h).
     part = Pos(0, 0, leg_h) * Box(
@@ -110,7 +113,9 @@ def build(spec: dict):
         if not applies:
             continue
         if style == "web_floor":
-            # open the region below the pocket floor, then close it with the X web
+            # open the region below the pocket floor, then fill it with X ribs
+            # spanning the FULL height (block bottom -> pocket floor), so the
+            # crosses sit at the lowest point of the block (Pavel's correction)
             if p["shape"] == "circle":
                 below = Pos(
                     p["x_position"], 0, (leg_h + floor_z) / 2
@@ -120,7 +125,10 @@ def build(spec: dict):
                     p["x_position"], 0, (leg_h + floor_z) / 2
                 ) * Box(p["along_x"], p["along_y"], remaining)
             part -= below
-            part += _x_ribs(p, rib_w, web_t, floor_z - web_t / 2)
+            part += _x_ribs(
+                p, rib_w, remaining, (leg_h + floor_z) / 2,
+                rib_len=_pocket_span(p) + 2 * rib_embed,
+            )
         else:  # cradle: solid floor, X ridge rising inside the pocket
             part += _x_ribs(p, rib_w, web_t, floor_z + web_t / 2)
 

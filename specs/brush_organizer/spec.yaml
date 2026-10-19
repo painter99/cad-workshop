@@ -2,12 +2,13 @@ part: brush_organizer
 description: >
   Desk organizer for brushes (kartacky) and pastes. A 250x55x35 block standing
   on 4 corner legs (5 mm tall), with six pockets of varying shape and depth on
-  the top face; under the deep pockets an X-shaped semi-open web instead of a
-  solid floor (variant A) or an X ridge on a solid floor (variant B).
-  Transcribed from a hand sketch, corrected by Pavel in chat (2026-10-19):
-  rectangular pockets are 12x15 mm, 30 mm deep, centered in Y like the other
-  pockets (the earlier full-width channel reading was REJECTED); legs are
-  only the 4 corner ones.
+  the top face; every pocket floor is an X of two diagonal ribs spanning the
+  full height from the block bottom to the pocket floor (crosses sit at the
+  lowest point of the block), quarter sectors open through to the bottom.
+  Transcribed from a hand sketch and corrected by Pavel in chat (2026-10-19):
+  rectangular pockets are 12x15 mm, 30 mm deep, centered in Y; legs are only
+  the 4 corner ones, pushed almost flush into the corners; X ribs in ALL
+  pockets, reaching the block bottom (chosen variant A direction, corrected).
 units: mm
 drawing: pending   # sketch photos not yet stored in repo
 
@@ -55,17 +56,20 @@ features:
       depth: 15
       x_position: 105
 
-  # X-fill interpretation (Pavel to pick A or B):
-  # A (web_floor): the pocket floor IS an X-shaped web (two diagonal ribs,
-  #   4 mm wide, 3 mm thick); the four quarter sectors stay OPEN through to
-  #   the bottom face. Applied to deep pockets only (see "under").
-  # B (cradle): every pocket has a solid floor at its depth; an X-shaped
-  #   ridge (4 mm wide, 3 mm tall) rises from the floor inside the pocket.
+  # X-fill, CHOSEN by Pavel (2026-10-19): variant A direction, corrected -
+  # the pocket floor IS an X of two diagonal ribs (4 mm wide) that span the
+  # FULL height from the block bottom face up to the pocket floor, so the
+  # crosses sit at the LOWEST point of the block (not recessed). The four
+  # quarter sectors stay OPEN through to the bottom face. Applied to ALL
+  # six pockets, incl. the shallow 35 mm ones (his explicit request).
+  # (The cradle alternative - solid floor + 3 mm X ridge - was not chosen;
+  # web_thickness below is kept only for that unused style.)
   x_fill:
-    style: web_floor     # variant A default; variant B overrides to "cradle"
-    under: deep_only     # deep = remaining floor <= 5 mm (P2, P3, P4, P5)
+    style: web_floor
+    under: all
     rib_width: 4
-    web_thickness: 3
+    rib_embed: 2         # each rib end extends 2 mm into the wall for a solid union
+    web_thickness: 3     # cradle-style ridge height only (unused)
 
   # Pavel's corrections: only the 4 corner legs; pushed almost flush into the
   # corners for stability (leg edge 2.5 mm from the block edge).
@@ -77,5 +81,8 @@ features:
 tolerance: 0.2
 assumptions:       # explicit, veto-friendly (one-parameter changes)
   - slot orientation: 12 mm across the block (Y) x 15 mm along it (X) - VETO?
-  - X-web under deep pockets only (P2-P5); end pockets keep a solid floor (variant A)
+  - "X ribs span the full under-region height (bottom -> pocket floor); Pavel
+    offered a cheaper 5-10 mm cross at the bottom, rejected - it would turn
+    the shallow 15 mm pockets into ~25-30 mm deep ones"
+  - each rib end embedded 2 mm into the wall (rib_embed) for a solid union
   - leg inset 5 mm from edges (leg edge 2.5 mm from the block edge) - stability per Pavel

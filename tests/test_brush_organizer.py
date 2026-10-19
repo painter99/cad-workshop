@@ -148,21 +148,34 @@ def test_pocket_depths(part, spec):
         ), f"{p['id']}: no wall beside pocket at mid-depth (pocket too shallow?)"
 
 
-def test_x_web_under_deep_pocket(part, spec):
-    """Under a deep pocket: open below the web, ribs on the diagonals, open quarters."""
-    p4 = next(p for p in spec["features"]["pockets"] if p["id"] == "P4")
-    x = p4["x_position"]
-    floor_z = (
-        spec["dimensions"]["height"] + spec["dimensions"]["leg_height"] - p4["depth"]
-    )
-    web_mid = floor_z - spec["features"]["x_fill"]["web_thickness"] / 2
-    below_web = floor_z - spec["features"]["x_fill"]["web_thickness"] - 1
-    r = p4["diameter"] / 2
-    d = r / (2 ** 0.5)  # point on the diagonal rib
-    assert not part.is_inside(Vector(x, 0, below_web)), "region below web is not open"
-    assert part.is_inside(Vector(x + d, d, web_mid)), "X rib missing on +45 diagonal"
-    assert part.is_inside(Vector(x - d, -d, web_mid)), "X rib missing on -45 diagonal"
-    assert not part.is_inside(Vector(x, r * 0.8, web_mid)), "quarter sector is not open"
+def test_x_webs_reach_block_bottom(part, spec):
+    """Pavel's correction: the X ribs sit at the LOWEST point of the block -
+    they span the full height from the block bottom to the pocket floor, in
+    every pocket (incl. the shallow 35 mm ones); quarter sectors stay open."""
+    dims = spec["dimensions"]
+    leg_h = dims["leg_height"]
+    top_z = dims["height"] + leg_h
+    for p in spec["features"]["pockets"]:
+        x = p["x_position"]
+        floor_z = top_z - p["depth"]
+        if p["shape"] == "circle":
+            r = p["diameter"] / 2
+            t = r / 2              # probe on the +45 rib centerline, mid-radius
+            q = r * 0.8            # quarter-sector probe on the pocket X axis
+        else:
+            t = min(p["along_x"], p["along_y"]) / 2 * 0.7
+            q = p["along_x"] / 2 * 0.8
+        mid_z = (leg_h + floor_z) / 2
+        pid = p["id"]
+        assert part.is_inside(Vector(x + t, t, leg_h + 1)), (
+            f"{pid}: X rib does not reach the block bottom"
+        )
+        assert part.is_inside(Vector(x + t, t, floor_z - 0.5)), (
+            f"{pid}: X rib does not reach the pocket floor"
+        )
+        assert not part.is_inside(Vector(x + q, 0, mid_z)), (
+            f"{pid}: quarter sector is not open"
+        )
 
 
 def test_stl_export_roundtrip_and_printability(part):
