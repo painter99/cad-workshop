@@ -1,0 +1,20 @@
+part: test_block
+description: >
+  Verification plate with two through holes. First end-to-end loop test:
+  proves spec -> model -> tests -> previews -> printable STL works before
+  any real part is attempted. Synthetic spec (no source drawing).
+units: mm
+drawing: none
+
+dimensions:
+  length: 60          # X
+  width: 30           # Y
+  thickness: 8        # Z
+  hole_diameter: 6
+  hole_spacing: 40    # distance between hole centers along X
+
+features:
+  through_holes: 2
+
+tolerance: 0.01       # absolute, mm, for all automated checks
+uncertain: []         # nothing uncertain in a synthetic spec
