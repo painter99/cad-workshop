@@ -27,12 +27,18 @@ def load_spec() -> dict:
     return yaml.safe_load(SPEC_PATH.read_text(encoding="utf-8"))
 
 
-def _pocket_solid(pocket: dict, top_z: float):
+def _pocket_solid(pocket: dict, top_z: float, width_dim: float = None):
     """Cutting tool for one pocket, extruded downward from the top face."""
     depth = pocket["depth"]
     if pocket["shape"] == "circle":
         return Pos(pocket["x_position"], 0, top_z - depth / 2) * Cylinder(
             radius=pocket["diameter"] / 2, height=depth
+        )
+    if pocket["shape"] == "slot_channel":
+        # open channel across the full width (Y), width along X
+        y_len = width_dim + 4  # overshoot for a clean cut through both faces
+        return Pos(pocket["x_position"], 0, top_z - depth / 2) * Box(
+            pocket["width"], y_len, depth
         )
     # rectangular slot: width along X, length along Y
     return Pos(pocket["x_position"], 0, top_z - depth / 2) * Box(
@@ -98,10 +104,12 @@ def build(spec: dict):
     part += [Pos(x, y, 0) * leg for x, y in leg_positions]
 
     # Pockets cut from the top face.
-    part -= [_pocket_solid(p, top_z) for p in pockets]
+    part -= [_pocket_solid(p, top_z, width) for p in pockets]
 
     # X-fill per pocket.
     for p in pockets:
+        if p["shape"] == "slot_channel":
+            continue  # channels keep a solid floor; X-fill applies to holes
         floor_z = top_z - p["depth"]
         remaining = floor_z - leg_h  # material between pocket floor and block bottom
         is_deep = remaining <= 5
