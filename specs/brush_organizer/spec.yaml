@@ -10,7 +10,7 @@ description: >
   the 4 corner ones, pushed almost flush into the corners; X ribs in ALL
   pockets, reaching the block bottom (chosen variant A direction, corrected).
 units: mm
-drawing: pending   # sketch photos not yet stored in repo
+drawing: generated   # dimensioned drawing generated from this spec (visuals/drawing.png); hand sketch kept private by owner decision
 
 dimensions:
   length: 250            # X
