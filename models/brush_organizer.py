@@ -115,7 +115,7 @@ def build(spec: dict):
         if style == "web_floor":
             # open the region below the pocket floor, then fill it with X ribs
             # spanning the FULL height (block bottom -> pocket floor), so the
-            # crosses sit at the lowest point of the block (Pavel's correction)
+            # crosses sit at the lowest point of the block (owner's correction)
             if p["shape"] == "circle":
                 below = Pos(
                     p["x_position"], 0, (leg_h + floor_z) / 2

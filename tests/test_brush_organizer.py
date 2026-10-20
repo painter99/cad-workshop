@@ -167,7 +167,7 @@ def test_pocket_depths(part, spec):
 
 
 def test_x_webs_reach_block_bottom(part, spec):
-    """Pavel's correction: the X ribs sit at the LOWEST point of the block -
+    """owner's correction: the X ribs sit at the LOWEST point of the block -
     they span the full height from the block bottom to the pocket floor, in
     every pocket (incl. the shallow 35 mm ones); quarter sectors stay open."""
     dims = spec["dimensions"]

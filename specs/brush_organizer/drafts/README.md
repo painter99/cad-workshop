@@ -1,6 +1,6 @@
 # Draft previews — brush_organizer
 
-The draft phase is closed: Pavel chose the variant A direction and corrected
+The draft phase is closed: the owner chose the variant A direction and corrected
 it (2026-10-19). The final previews are `final_top.png`, `final_iso.png`,
 `final_bottom.png`; the full report is `../verification.md`.
 
@@ -15,5 +15,5 @@ clean; retrievable from git history — commits `cd2f7ae` and `e680aae`):
 
 - variant A / B — first two X-fill interpretations (web under deep pockets
   only vs. cradle ridge), before the slot/leg corrections.
-- variant A2 / B2 — full-width open channels; REJECTED by Pavel (shape did
+- variant A2 / B2 — full-width open channels; REJECTED by the owner (shape did
   not match the sketch).

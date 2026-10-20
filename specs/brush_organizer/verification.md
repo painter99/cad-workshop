@@ -1,9 +1,9 @@
 # Verification report — brush_organizer (final)
 
 - Spec: `specs/brush_organizer/spec.yaml` — transcribed from a hand sketch,
-  corrected and approved by Pavel in chat 2026-10-19 (three correction rounds,
+  corrected and approved by the owner in chat 2026-10-19 (three correction rounds,
   each applied and re-verified; final X-fill choice and leg placement confirmed
-  by Pavel, remaining assumptions listed below are veto-friendly).
+  by the owner, remaining assumptions listed below are veto-friendly).
 - Model: `models/brush_organizer.py` (build123d 0.13.0, Python 3.13)
 - Test run: **19 passed** (8 test_block + 11 brush_organizer), local run
   2026-10-19; includes the mandatory single-body connectivity test.
@@ -39,7 +39,7 @@
 ## History of corrections (all applied and re-verified)
 
 1. First attempt had 5 disconnected bodies (legs detached by the open
-   quarters) — caught visually by Pavel, tests missed it → mandatory
+   quarters) — caught visually by the owner, tests missed it → mandatory
    `body_count == 1` test added.
 2. Rectangular pockets re-read as 12×15 mm (12 across the block, 15 along it),
    30 mm deep, centered in Y; the full-width channel reading was rejected.
@@ -47,7 +47,7 @@
    corners (inset 5 mm, leg edge 2.5 mm from the block edge) for stability.
 4. X ribs: span the full under-region height (block bottom → pocket floor)
    in ALL pockets incl. the shallow 35 mm ones — the crosses sit at the
-   lowest point of the block, no recessed floating web. Pavel offered a
+   lowest point of the block, no recessed floating web. the owner offered a
    cheaper 5–10 mm cross at the bottom; rejected because it would turn the
    shallow 15 mm pockets into ~25–30 mm deep ones (the brush rests on the
    ribs, so rib height = resting depth). Each rib end is embedded 2 mm into
