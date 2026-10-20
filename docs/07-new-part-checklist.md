@@ -14,6 +14,9 @@ produces an artifact that the next step consumes.
       parameter change, not re-modeling.
 - [ ] **Gate:** a human reviews the transcription against the original
       sketch/drawing. Only after approval is the spec authoritative.
+- [ ] Generate the dimensioned drawing **from the approved spec**
+      (`tools/render_drawing.py`) and compare it against the sketch
+      **before modeling** — veto any misread dimension now, not in geometry.
 
 ## 2. Model
 

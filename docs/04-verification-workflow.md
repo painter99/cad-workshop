@@ -21,6 +21,17 @@ This document defines how a drawing or sketch becomes a verified model, and what
 
 The transcription is reviewed against the drawing by a human. This gate exists because everything downstream (model, tests, report) inherits spec errors silently. Only after approval is the spec authoritative.
 
+## Step 2.5 — Spec visualization (drawing from the spec)
+
+1. Generate the dimensioned drawing **from the approved spec**
+   (`tools/render_drawing.py` → `specs/<part>/visuals/drawing.png/svg`).
+2. A human compares this drawing against the original sketch **before
+   modeling starts**. The drawing shows the *interpretation* of the sketch;
+   any misread dimension is vetoed here — the cheapest correction point in
+   the whole loop (one parameter change, no re-modeling).
+3. When the sketch is private, this drawing also serves as the public,
+   dimension-bearing artifact of the part.
+
 ## Step 3 — Modeling and testing
 
 The model reads the approved spec; the test suite asserts every dimension (see [03-testing.md](03-testing.md)).
