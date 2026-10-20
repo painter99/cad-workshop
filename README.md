@@ -78,6 +78,10 @@ presentation polish (render style, optional hero variant with brushes) — see
 [docs/06-lessons-learned.md](docs/06-lessons-learned.md). To add your own
 part, follow [docs/07-new-part-checklist.md](docs/07-new-part-checklist.md).
 
+## Origins
+
+This workshop grew out of an earlier experiment: [semishape](https://github.com/painter99/semishape), an Agent Zero plugin that turned plain-language descriptions directly into build123d code and STL files. It proved the concept — and its limit: nothing verified the generated geometry, so the output had to be trusted. When the daily workflow moved to a phone-orchestrated AI agent (Agora), the need changed from "generate code faster" to "prove every result", and this repository was reworked into its current form: a written spec, an automated verification suite, headless previews and a human acceptance gate (see [docs/01-workflow.md](docs/01-workflow.md); the operator-side pattern is documented as docs/26 in [agora-pro-setup](https://github.com/painter99/agora-pro-setup)).
+
 ## License
 
 MIT — see [LICENSE](LICENSE).
