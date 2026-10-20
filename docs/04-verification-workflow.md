@@ -6,7 +6,14 @@ This document defines how a drawing or sketch becomes a verified model, and what
 
 ## Step 1 — Transcription
 
-1. The drawing (photo, scan, sketch) is stored at `specs/<part>/drawing.png` and versioned.
+1. The drawing (photo, scan, sketch) is stored at `specs/<part>/drawing.png`
+   and versioned — **unless the owner keeps it private** (hand sketches and
+   prototype photos do not belong in a public repository by default). In the
+   private-sketch case the spec's `drawing:` field is set to `generated`, and
+   a dimensioned drawing is generated from the approved spec instead
+   (`tools/render_drawing.py` → `specs/<part>/visuals/drawing.png/svg`), so
+   the public repository still shows a professional, dimension-bearing
+   artifact without exposing the sketch.
 2. Every dimension, tolerance, feature and note is transcribed into `specs/<part>/spec.yaml`.
 3. Ambiguous or unreadable items are marked `uncertain: true` in the spec — never guessed.
 

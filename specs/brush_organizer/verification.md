@@ -65,8 +65,9 @@
   and near the floor on the diagonal, open quarter sectors), not by full GD&T.
 - Pocket centers sit at an even 40 mm pitch (±100/±60/±20), leaving a 7.5 mm
   end wall at the 35 mm pockets so the block edge is not paper-thin.
-- The original sketch lives in the chat only (`drawing: pending` in spec.yaml);
-  photos are to be added to `specs/brush_organizer/` later.
+- The original sketch lives in the chat only and stays **private** by owner
+  decision (`drawing: generated` in spec.yaml — the public dimensioned
+  drawing is generated from the spec by `tools/render_drawing.py`).
 - Preview renderer (matplotlib) shows depth-sorting artifacts; the top and
   bottom views are the reliable ones.
 
@@ -77,9 +78,11 @@
   (corner legs, even 40 mm pitch, X ribs through to the block bottom) was
   confirmed in chat; the remaining assumptions above stay veto-friendly and
   are one-parameter changes if a print reveals a problem.
-- The schematic hero render (`drafts/hero_scene.png`) was rejected by the
+- The schematic hero render (`drafts/hero_scene.png`, since removed from the
+  repository) was rejected by the
   owner as unusable for presentation (matplotlib depth-sorting artifacts);
-  a better renderer is a separate open task, not part of this part's scope.
+  presentation rendering was later solved with a separate headless Blender
+  Cycles pipeline (`tools/render_blender.py`), outside this part's scope.
 - Print considerations: the tall ribs print as vertical walls (no bridging
   over the open quarters is required for the ribs themselves; the pocket
   floors above the open quarters are bridged only where a quarter spans

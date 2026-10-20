@@ -99,8 +99,8 @@ final_part = bp.part
 # Export
 output_dir = "./exports/stl"
 makedirs(output_dir, exist_ok=True)
-export_stl(final_part, f"{output_dir}/konzole_final.stl")
-print(f"Model uložen do {output_dir}/konzole_final.stl")
+export_stl(final_part, f"{output_dir}/bracket_improved.stl")
+print(f"Model saved to {output_dir}/bracket_improved.stl")
 
 # Zobrazení ve VS Code (OCP CAD Viewer)
 if show:

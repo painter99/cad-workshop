@@ -57,8 +57,8 @@ slot2 = slot2.move(Location((slot2_pos, 0, 0)))
 result = valec - slot1 - slot2
 
 # Export
-export_stl(result, "./stl/konzole_pure.stl")
-print("\nExportováno: konzole_pure.stl")
+export_stl(result, "./stl/bracket_plain.stl")
+print("\nExported: bracket_plain.stl")
 
 # ZOBRAZENÍ V OCP CAD VIEWER
 show(result)

@@ -19,7 +19,7 @@ sirka_slotu_B = 18.5
 
 # Pevnostní parametry
 prumer_valce = 40.0         
-dira_prumer = 5.3           # Pro M5 závitové tyče
+dira_prumer = 4.3           # Pro M4 závitové tyče (zmenšeno z 5.3 mm)
 fillet_rim_radius = 2.0     
 fillet_slot_radius = 1.5    
 
@@ -33,8 +33,8 @@ delka_valce = hloubka_nasazeni + vzdalenost_desek + hloubka_nasazeni
 r = prumer_valce / 2.0
 stred_x = delka_valce / 2.0
 
-# 🎯 DOKONALE VYVÁŽENÉ POZICE DĚR (Matematický kompromis)
-# Zajišťuje min. 2.1 mm k vnitřnímu slotu, 2.5 mm k vnější stěně a 4.7 mm mezi dírami
+# 🎯 DOKONALE VYVÁŽENÉ POZICE DĚR (Matematický kompromis pro M4)
+# Zajišťuje min. 2.6 mm k vnitřnímu slotu, 3.0 mm k vnější stěně a 5.7 mm mezi dírami
 y_hole = 5.0
 z_hole = 14.0
 
@@ -104,15 +104,15 @@ if __name__ == "__main__":
     output_dir = "./exports/stl"
     makedirs(output_dir, exist_ok=True)
     
-    export_stl(final_part, f"{output_dir}/konzole_armovana.stl")
+    export_stl(final_part, f"{output_dir}/bracket_ribbed_m4.stl")
     
-    print(f"✅ Model úspěšně uložen do {output_dir}/")
+    print(f"OK: model saved to {output_dir}/")
     print(f"📊 Objem materiálu: {final_part.volume / 1000:.2f} cm3")
 
     if show:
         show(
             final_part, 
-            names=["Konzole_Armovana"], 
+            names=["Konzole_Armovana_M4"], 
             colors=["#3498db"], 
             alphas=[0.8], 
             grid=(True, True, True)
