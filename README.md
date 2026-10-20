@@ -2,6 +2,11 @@
 
 Headless parametric CAD workspace: models are built from written specs, verified by automated tests, and reviewed through generated previews. Built on [build123d](https://github.com/gumyr/build123d) (Python + OpenCascade), designed for AI-assisted modeling where the machine — not memory — proves correctness.
 
+![Brush organizer — Blender render](specs/brush_organizer/visuals/render_iso.png)
+![Brush organizer — dimensioned drawing generated from spec.yaml](specs/brush_organizer/visuals/drawing.png)
+
+*Left: presentation render (headless Blender Cycles from the verified STL). Right: dimensioned drawing generated directly from `spec.yaml`. More views: [`visuals/`](specs/brush_organizer/visuals/).*
+
 ## Why code-first, headless
 
 - **Code is the single source of truth.** Every model is a readable, versioned Python script. Geometry changes are diffs, not redraws.
@@ -27,13 +32,13 @@ Details: [docs/01-workflow.md](docs/01-workflow.md), [docs/04-verification-workf
 ```text
 cad-workshop/
 ├── README.md            # this file
-├── docs/                # workflow, environment, testing, verification, modeling rules, lessons
+├── docs/                # workflow, environment, testing, verification, modeling rules, lessons, new-part checklist
 │   └── legacy/          # original study notes (preserved, superseded)
 ├── specs/               # one folder per part: spec.yaml, verification report, previews, visuals
 ├── models/              # build123d model scripts (read spec.yaml)
 ├── tests/               # pytest suite: dimension, topology, validity, export checks
 ├── examples/            # small scripts demonstrating specific build123d features
-├── tools/               # preview rendering and visualization helpers
+├── tools/               # preview rendering, drawing generation, visualization helpers
 └── exports/             # generated output (STEP/STL/PNG), not versioned
 ```
 
@@ -41,7 +46,8 @@ cad-workshop/
 
 ```bash
 python -m venv .venv && source .venv/bin/activate
-pip install -e ".[dev]"
+pip install --upgrade pip
+pip install -r requirements.txt
 pytest                # run the verification suite
 ```
 
@@ -61,13 +67,16 @@ The verification loop is proven end-to-end on two parts:
   corner legs, transcribed from a hand sketch, corrected in three rounds,
   20/20 tests passing, exported (STL/STEP) and **accepted by the owner on
   2026-10-20**. Presentation renders (`specs/brush_organizer/visuals/`) were
-  produced with a headless Blender Cycles pipeline from the verified STL.
+  produced with a headless Blender Cycles pipeline from the verified STL
+  ([tools/render_blender.py](tools/render_blender.py)), and a dimensioned
+  drawing is generated directly from `spec.yaml`
+  ([tools/render_drawing.py](tools/render_drawing.py)).
   External FDM printing is planned but not yet done.
 
-Current open task: generated dimensioned drawings derived from `spec.yaml`
-(so the repository shows professional artifacts, while raw hand sketches stay
-private) and further presentation polish — see
-[docs/06-lessons-learned.md](docs/06-lessons-learned.md).
+Current open tasks: first external print of the brush organizer, and
+presentation polish (render style, optional hero variant with brushes) — see
+[docs/06-lessons-learned.md](docs/06-lessons-learned.md). To add your own
+part, follow [docs/07-new-part-checklist.md](docs/07-new-part-checklist.md).
 
 ## License
 

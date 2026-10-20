@@ -52,8 +52,20 @@ unusable. Rules:
 
 - judge geometry from top/bottom views plus measured probes, never from an
   iso render alone;
-- a presentation-quality renderer is a separate open task (M4), not something
-  to bolt onto the preview step.
+- presentation-quality rendering is a **separate pipeline**, not something to
+  bolt onto the preview step — this is now solved: a headless Blender Cycles
+  renderer ([tools/render_blender.py](../tools/render_blender.py)) produces
+  the presentation images from the verified STL, while matplotlib stays the
+  quick preview tool.
+
+## 6b. Verify geometry by measurement, not by eye
+
+When a render "looked mirrored", ray-probing the STL against the spec showed
+the model was exactly right — the camera roll was wrong. Judge the *model* by
+measured probes and the *render* by camera conventions; never conclude the
+geometry is wrong from a single suspicious image. The Blender renderer
+documents its camera gotchas (top-view roll degeneration, deterministic
+look-at) in [tools/README-render_blender.md](../tools/README-render_blender.md).
 
 ## 7. Printability is a spec-level concern (FDM/PLA)
 
