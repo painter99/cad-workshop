@@ -27,12 +27,13 @@ Details: [docs/01-workflow.md](docs/01-workflow.md), [docs/04-verification-workf
 ```text
 cad-workshop/
 ├── README.md            # this file
-├── docs/                # workflow, environment, testing, verification, modeling rules
+├── docs/                # workflow, environment, testing, verification, modeling rules, lessons
 │   └── legacy/          # original study notes (preserved, superseded)
-├── specs/               # one folder per part: drawing, spec.yaml, verification report
+├── specs/               # one folder per part: spec.yaml, verification report, previews, visuals
 ├── models/              # build123d model scripts (read spec.yaml)
 ├── tests/               # pytest suite: dimension, topology, validity, export checks
 ├── examples/            # small scripts demonstrating specific build123d features
+├── tools/               # preview rendering and visualization helpers
 └── exports/             # generated output (STEP/STL/PNG), not versioned
 ```
 
@@ -48,7 +49,7 @@ Environment details: [docs/02-environment.md](docs/02-environment.md).
 
 ## Continuous integration
 
-Every push runs the full test suite on GitHub Actions. CI is the single source of truth for code correctness; visual correctness is judged by a human against the original drawing. See [docs/03-testing.md](docs/03-testing.md).
+Every push to `main` runs the full test suite on GitHub Actions; documentation-only changes skip the suite (`paths-ignore` for `*.md` and `docs/`). CI is the single source of truth for code correctness; visual correctness is judged by a human against the original intent. See [docs/03-testing.md](docs/03-testing.md).
 
 ## Status
 
@@ -59,10 +60,14 @@ The verification loop is proven end-to-end on two parts:
 - **brush_organizer** — first real part (M3): 6 pockets with X-rib floors on
   corner legs, transcribed from a hand sketch, corrected in three rounds,
   20/20 tests passing, exported (STL/STEP) and **accepted by the owner on
-  2026-10-20**. External FDM printing is planned but not yet done.
+  2026-10-20**. Presentation renders (`specs/brush_organizer/visuals/`) were
+  produced with a headless Blender Cycles pipeline from the verified STL.
+  External FDM printing is planned but not yet done.
 
-Current open task: a presentation-quality renderer (the matplotlib previews
-have depth-sorting artifacts; see [docs/06-lessons-learned.md](docs/06-lessons-learned.md)).
+Current open task: generated dimensioned drawings derived from `spec.yaml`
+(so the repository shows professional artifacts, while raw hand sketches stay
+private) and further presentation polish — see
+[docs/06-lessons-learned.md](docs/06-lessons-learned.md).
 
 ## License
 
