@@ -131,6 +131,24 @@ def test_pocket_openings_positions_and_sizes(measured, spec):
     assert got == want, f"openings mismatch:\n got={sorted(got)}\nwant={sorted(want)}"
 
 
+def test_even_pocket_spacing_and_end_wall(spec):
+    """Six pocket centers use one even pitch, centered on the block;
+    outer circle walls keep enough material to the end faces."""
+    pockets = spec["features"]["pockets"]
+    xs = [p["x_position"] for p in pockets]
+    pitches = [b - a for a, b in zip(xs, xs[1:])]
+    assert len(pockets) == 6
+    assert xs == sorted(xs)
+    assert len(set(pitches)) == 1, f"pocket pitch is not uniform: {pitches}"
+    assert (xs[0] + xs[-1]) == pytest.approx(0, abs=0.01), "layout is not centered"
+    length = spec["dimensions"]["length"]
+    end_margins = []
+    for p in (pockets[0], pockets[-1]):
+        half_span_x = p["diameter"] / 2 if p["shape"] == "circle" else p["along_x"] / 2
+        end_margins.append(length / 2 - abs(p["x_position"]) - half_span_x)
+    assert min(end_margins) >= 7.5 - 0.01, f"end wall too thin: {end_margins}"
+
+
 def test_pocket_depths(part, spec):
     """Void at mid-depth of each pocket, wall material right beside it."""
     top_z = spec["dimensions"]["height"] + spec["dimensions"]["leg_height"]

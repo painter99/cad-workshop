@@ -1,0 +1,80 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1050" viewBox="0 0 1600 1050">
+ <defs>
+  <linearGradient id="top" x1="0" y1="0" x2=".3" y2="1"><stop stop-color="#eee8dc"/><stop offset="1" stop-color="#d5cbbb"/></linearGradient>
+  <linearGradient id="front" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#b9ad99"/><stop offset="1" stop-color="#918571"/></linearGradient>
+  <linearGradient id="paste" x1="0" y1="0" x2="1" y2="1"><stop stop-color="#b0e5d0"/><stop offset="1" stop-color="#4c9c7e"/></linearGradient>
+  <filter id="shadow" x="-20%" y="-30%" width="150%" height="180%"><feGaussianBlur stdDeviation="18"/></filter>
+ </defs>
+ <rect width="1600" height="1050" fill="#f5f2ec"/>
+ <ellipse cx="800" cy="720" rx="590" ry="110" fill="#514a40" opacity=".17" filter="url(#shadow)"/>
+ <!-- Top face is the block 250x55 mm; six pocket centers at 40 mm pitch. -->
+ <!-- Four corner feet, tucked under the block corners. -->
+ <g fill="#766e61" stroke="#62594c" stroke-width="2">
+  <path d="M229 395 l12 -2 0 60 -12 2z"/><ellipse cx="235" cy="457" rx="10" ry="5"/>
+  <path d="M1229 195 l12 -2 0 60 -12 2z"/><ellipse cx="1235" cy="257" rx="10" ry="5"/>
+  <path d="M349 615 l12 -2 0 60 -12 2z"/><ellipse cx="355" cy="677" rx="10" ry="5"/>
+  <path d="M1349 415 l12 -2 0 60 -12 2z"/><ellipse cx="1355" cy="477" rx="10" ry="5"/>
+ </g>
+ <!-- Block sides and top -->
+ <path d="M355 615 L1355 415 L1355 485 L355 685 Z" fill="url(#front)" stroke="#716858" stroke-width="5"/>
+ <path d="M1235 195 L1355 415 L1355 485 L1235 265 Z" fill="#a39783" stroke="#716858" stroke-width="5"/>
+ <path d="M235 395 L1235 195 L1355 415 L355 615 Z" fill="url(#top)" stroke="#716858" stroke-width="5"/>
+ <!-- Pocket cavities: rim/opening, recessed floor and X at the actual floor level. -->
+ <g transform="rotate(-11 395 485)">
+  <ellipse cx="395" cy="485" rx="78" ry="54" fill="#655f54" stroke="#796f60" stroke-width="5"/>
+  <ellipse cx="395" cy="499" rx="69" ry="45" fill="#514c43" stroke="#9a907e" stroke-width="3"/>
+  <path d="M350 463 L440 535 M440 463 L350 535" stroke="#dfd5c2" stroke-width="10"/>
+ </g>
+ <g transform="rotate(-11 1195 325)">
+  <ellipse cx="1195" cy="325" rx="78" ry="54" fill="#655f54" stroke="#796f60" stroke-width="5"/>
+  <ellipse cx="1195" cy="339" rx="69" ry="45" fill="#514c43" stroke="#9a907e" stroke-width="3"/>
+  <path d="M1150 303 L1240 375 M1240 303 L1150 375" stroke="#dfd5c2" stroke-width="10"/>
+ </g>
+ <g transform="rotate(-11 875 389)">
+  <ellipse cx="875" cy="389" rx="49" ry="34" fill="#655f54" stroke="#796f60" stroke-width="4"/>
+  <ellipse cx="875" cy="399" rx="44" ry="29" fill="#514c43" stroke="#9a907e" stroke-width="2"/>
+  <path d="M846 378 L904 420 M904 378 L846 420" stroke="#dfd5c2" stroke-width="8"/>
+ </g>
+ <g transform="rotate(-11 1035 357)">
+  <ellipse cx="1035" cy="357" rx="67" ry="46" fill="#655f54" stroke="#796f60" stroke-width="4"/>
+  <ellipse cx="1035" cy="367" rx="61" ry="39" fill="#514c43" stroke="#9a907e" stroke-width="2"/>
+  <path d="M996 345 L1074 389 M1074 345 L996 389" stroke="#dfd5c2" stroke-width="9"/>
+ </g>
+ <!-- 15x12 mm rectangular wells, shown as a 3D recess rather than marks on the top face. -->
+ <g transform="rotate(-11 555 463)">
+  <path d="M515 446 L557 438 L575 480 L533 488 Z" fill="#655f54" stroke="#796f60" stroke-width="4"/>
+  <path d="M521 451 L557 444 L568 477 L532 484 Z" fill="#514c43" stroke="#9a907e" stroke-width="2"/>
+  <path d="M523 453 L564 476 M562 447 L529 482" stroke="#dfd5c2" stroke-width="6"/>
+ </g>
+ <g transform="rotate(-11 715 431)">
+  <path d="M675 414 L717 406 L735 448 L693 456 Z" fill="#655f54" stroke="#796f60" stroke-width="4"/>
+  <path d="M681 419 L717 412 L728 445 L692 452 Z" fill="#514c43" stroke="#9a907e" stroke-width="2"/>
+  <path d="M683 421 L724 444 M722 415 L689 450" stroke="#dfd5c2" stroke-width="6"/>
+ </g>
+ <!-- Two toothpaste tubes are seated down inside the end wells, with their rounded screw caps at the bottom. -->
+ <g stroke="#397b63" stroke-width="4">
+  <path d="M367 495 Q368 486 378 483 L396 479 L401 449 Q403 438 414 440 Q425 442 422 453 L416 483 L432 489 Q440 493 438 501 L435 508 L376 519 Q367 517 367 508 Z" fill="url(#paste)"/>
+  <rect x="384" y="501" width="42" height="17" rx="8" transform="rotate(-11 405 509)" fill="#d9f1e6"/>
+  <path d="M1167 335 Q1168 326 1178 323 L1196 319 L1201 289 Q1203 278 1214 280 Q1225 282 1222 293 L1216 323 L1232 329 Q1240 333 1238 341 L1235 348 L1176 359 Q1167 357 1167 348 Z" fill="url(#paste)"/>
+  <rect x="1184" y="341" width="42" height="17" rx="8" transform="rotate(-11 1205 349)" fill="#d9f1e6"/>
+ </g>
+ <!-- Brushes descend into the two rectangular wells (one round-ended, one angular). -->
+ <g stroke="#8a5d39" stroke-width="3">
+  <path d="M542 476 L550 432 Q551 419 563 418 Q575 418 574 431 L567 482 Z" fill="#df9b57"/>
+  <path d="M702 454 L710 399 L737 394 L731 460 Z" fill="#bd7b45"/>
+  <path d="M550 432 Q551 413 563 404 Q574 413 574 432 Z" fill="#f2dfc6"/>
+  <path d="M710 399 L712 379 L738 374 L737 394 Z" fill="#f2dfc6"/>
+ </g>
+ <g stroke="#f6ead7" stroke-width="2"><path d="M554 412 l-3 -12 M560 409 l0 -13 M566 409 l3 -12"/><path d="M714 378 l-3 -12 M721 376 l0 -13 M728 375 l3 -12"/></g>
+ <!-- Child-sized rounded handles in the circular P4/P5 wells, also seated in the cavities. -->
+ <g stroke="#765241" stroke-width="3">
+  <path d="M860 452 Q852 439 861 427 Q870 415 884 421 Q898 427 894 442 L886 484 Q884 495 873 493 Q862 491 863 480 Z" fill="#e58d70"/>
+  <path d="M1017 420 Q1008 402 1020 387 Q1032 372 1049 380 Q1066 388 1060 407 L1049 459 Q1046 472 1033 469 Q1019 466 1021 452 Z" fill="#7da9c5"/>
+  <path d="M861 430 Q869 413 884 418 L896 424 L891 436 Z" fill="#f5e7db"/>
+  <path d="M1020 391 Q1030 370 1048 377 L1062 384 L1056 398 Z" fill="#f5e7db"/>
+ </g>
+ <g stroke="#f8f2e9" stroke-width="3"><path d="M864 423 l-2 -11 M871 420 l0 -12 M878 419 l2 -12 M885 421 l4 -11"/><path d="M1024 382 l-2 -13 M1032 378 l0 -14 M1040 377 l2 -13 M1048 380 l5 -12"/></g>
+ <text x="155" y="845" font-family="sans-serif" font-size="34" fill="#433d34" font-weight="600">Koncepční vizualizace — organizér s pomůckami</text>
+ <text x="155" y="892" font-family="sans-serif" font-size="23" fill="#696257">Vektorová ilustrace podle aktuálního rozměrového modelu; doplňky jsou schematické, nikoli výrobní díly.</text>
+ <text x="155" y="936" font-family="sans-serif" font-size="20" fill="#847d71">Pasty v krajních Ø35 • hranaté / zaoblené kartáčky v obdélnících • dětské kulaté rukojeti ve válcích • 4 rohové nožičky</text>
+</svg>

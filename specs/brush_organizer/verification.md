@@ -22,7 +22,9 @@
 | Leg centers | ±120 / ±22.5 (inset 5) | exact | PASS |
 | Leg diameter / height | 5 / 5 | 5 / 5 | PASS |
 | Pocket openings on top | 6 | 6 | PASS |
-| Pocket positions (X) | -105/-63/-21/21/63/105 | all exact | PASS |
+| Pocket positions (X) | -100/-60/-20/20/60/100 (even 40 mm pitch) | all exact | PASS |
+| Pocket pitch | 40 (uniform) | 40 | PASS |
+| End wall at Ø35 pockets | ≥7.5 mm | 7.5 mm each side | PASS |
 | Circle pockets Ø | 35 / 22 / 30 / 35 | exact | PASS |
 | Rectangular pockets | 15 along X × 12 across Y | 15 × 12 | PASS |
 | Pocket depths | 15/30/30/30/30/15 | void at mid-depth + wall beside each | PASS |
@@ -61,8 +63,8 @@
 
 - The X structure was verified by point probes (rib material near the bottom
   and near the floor on the diagonal, open quarter sectors), not by full GD&T.
-- The 35 mm end pockets leave a 2.5 mm wall to the block end face over the
-  full height; the diagonal ribs brace it. Watch this wall on the first print.
+- Pocket centers sit at an even 40 mm pitch (±100/±60/±20), leaving a 7.5 mm
+  end wall at the 35 mm pockets so the block edge is not paper-thin.
 - Preview renderer (matplotlib) shows depth-sorting artifacts; the top and
   bottom views are the reliable ones.
 - Print considerations: the tall ribs print as vertical walls (no bridging

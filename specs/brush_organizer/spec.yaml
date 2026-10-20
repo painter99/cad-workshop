@@ -20,41 +20,42 @@ dimensions:
   leg_diameter: 5
 
 features:
-  # Six pockets, evenly spaced along X:
-  # x = -105, -63, -21, +21, +63, +105; all centered in Y.
+  # Six pockets, evenly spaced along X; centers moved inward by 5/3/1 mm
+  # respectively to give equal 7.5 mm end walls and a uniform 40 mm pitch.
+  # x = -100, -60, -20, +20, +60, +100 (even 40 mm pitch; end wall 7.5 mm); all centered in Y.
   pockets:
     - id: P1
       shape: circle
       diameter: 35
       depth: 15
-      x_position: -105
+      x_position: -100
     - id: P2
       shape: slot
       along_x: 15        # 15 mm along the block ("15 mm na delku")
       along_y: 12        # 12 mm across the block ("12 mm na sirku") - VETO?
       depth: 30
-      x_position: -63
+      x_position: -60
     - id: P3
       shape: slot
       along_x: 15
       along_y: 12
       depth: 30
-      x_position: -21
+      x_position: -20
     - id: P4
       shape: circle
       diameter: 22
       depth: 30
-      x_position: 21
+      x_position: 20
     - id: P5
       shape: circle
       diameter: 30
       depth: 30
-      x_position: 63
+      x_position: 60
     - id: P6
       shape: circle
       diameter: 35
       depth: 15
-      x_position: 105
+      x_position: 100
 
   # X-fill, CHOSEN by Pavel (2026-10-19): variant A direction, corrected -
   # the pocket floor IS an X of two diagonal ribs (4 mm wide) that span the
