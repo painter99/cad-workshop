@@ -52,7 +52,17 @@ Every push runs the full test suite on GitHub Actions. CI is the single source o
 
 ## Status
 
-Early stage. The first verified model is being built to prove the loop end-to-end before more parts are added.
+The verification loop is proven end-to-end on two parts:
+
+- **test_block** — reference part (60×30×8, 2× Ø6, 40 mm pitch), the calibration
+  target for the whole workflow.
+- **brush_organizer** — first real part (M3): 6 pockets with X-rib floors on
+  corner legs, transcribed from a hand sketch, corrected in three rounds,
+  20/20 tests passing, exported (STL/STEP) and **accepted by the owner on
+  2026-10-20**. External FDM printing is planned but not yet done.
+
+Current open task: a presentation-quality renderer (the matplotlib previews
+have depth-sorting artifacts; see [docs/06-lessons-learned.md](docs/06-lessons-learned.md)).
 
 ## License
 

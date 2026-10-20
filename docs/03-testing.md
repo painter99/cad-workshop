@@ -11,6 +11,7 @@
 | Positions | distances between feature centers vs. spec | misplaced holes, wrong spacing |
 | Export round-trip | export STEP/STL, re-import, re-check | corrupted or empty export |
 | Completeness | every spec dimension has ≥1 assertion | silently untested dimensions |
+| Connectivity | body/solid count == expected (typically 1) | features silently disconnected by cuts (e.g. legs detached by open sectors) |
 
 ## How tests read the spec
 
@@ -18,7 +19,7 @@ Tests and the model both load `specs/<part>/spec.yaml`. The spec is the only sha
 
 ## What tests cannot prove
 
-- **Visual correctness.** A model can pass every measurement and still look wrong (misplaced rib, mirrored part where orientation matters). Previews exist for this; a human judges them.
+- **Visual correctness.** A model can pass every measurement and still look wrong (misplaced rib, mirrored part where orientation matters). Previews exist for this; a human judges them. It can also pass while being **disconnected into multiple bodies** — per-feature tests never see the whole; hence the mandatory connectivity check above (learned in M3: legs cut off by open quarter sectors passed all dimension tests).
 - **Full GD&T.** Flatness, perpendicularity, runout and similar formal tolerances are only approximated by simplified checks (e.g., concentricity as center distance). Formal tolerance analysis is out of scope and is never implied by a green suite.
 - **Fitness for manufacturing.** Tests prove the geometry matches the spec; they do not prove the spec is manufacturable.
 

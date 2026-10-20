@@ -5,8 +5,8 @@
   each applied and re-verified; final X-fill choice and leg placement confirmed
   by the owner, remaining assumptions listed below are veto-friendly).
 - Model: `models/brush_organizer.py` (build123d 0.13.0, Python 3.13)
-- Test run: **19 passed** (8 test_block + 11 brush_organizer), local run
-  2026-10-19; includes the mandatory single-body connectivity test.
+- Test run: **20 passed** (8 test_block + 12 brush_organizer), local run
+  2026-10-20; includes the mandatory single-body connectivity test.
 - Exports: `exports/brush_organizer.stl` (watertight), `exports/brush_organizer.step`
 - Previews: `specs/brush_organizer/drafts/final_{top,iso,bottom}.png`
   (visually inspected and compared against the sketch before this report)
@@ -47,7 +47,7 @@
    corners (inset 5 mm, leg edge 2.5 mm from the block edge) for stability.
 4. X ribs: span the full under-region height (block bottom → pocket floor)
    in ALL pockets incl. the shallow 35 mm ones — the crosses sit at the
-   lowest point of the block, no recessed floating web. the owner offered a
+   lowest point of the block, no recessed floating web. The owner offered a
    cheaper 5–10 mm cross at the bottom; rejected because it would turn the
    shallow 15 mm pockets into ~25–30 mm deep ones (the brush rests on the
    ribs, so rib height = resting depth). Each rib end is embedded 2 mm into
@@ -65,8 +65,21 @@
   and near the floor on the diagonal, open quarter sectors), not by full GD&T.
 - Pocket centers sit at an even 40 mm pitch (±100/±60/±20), leaving a 7.5 mm
   end wall at the 35 mm pockets so the block edge is not paper-thin.
+- The original sketch lives in the chat only (`drawing: pending` in spec.yaml);
+  photos are to be added to `specs/brush_organizer/` later.
 - Preview renderer (matplotlib) shows depth-sorting artifacts; the top and
   bottom views are the reliable ones.
+
+## Owner acceptance
+
+- **Accepted 2026-10-20** by the owner after visual review of the final
+  previews (top/iso/bottom) against the original sketch. The final geometry
+  (corner legs, even 40 mm pitch, X ribs through to the block bottom) was
+  confirmed in chat; the remaining assumptions above stay veto-friendly and
+  are one-parameter changes if a print reveals a problem.
+- The schematic hero render (`drafts/hero_scene.png`) was rejected by the
+  owner as unusable for presentation (matplotlib depth-sorting artifacts);
+  a better renderer is a separate open task, not part of this part's scope.
 - Print considerations: the tall ribs print as vertical walls (no bridging
   over the open quarters is required for the ribs themselves; the pocket
   floors above the open quarters are bridged only where a quarter spans

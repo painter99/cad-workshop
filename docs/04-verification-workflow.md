@@ -18,7 +18,15 @@ The transcription is reviewed against the drawing by a human. This gate exists b
 
 The model reads the approved spec; the test suite asserts every dimension (see [03-testing.md](03-testing.md)).
 
-## Step 4 — Verification report
+## Step 4 — Preview before final build
+
+Before running the final build and export, generate previews and **compare them
+against the sketch**. M3 lesson: the first model passed the whole suite while
+consisting of 5 disconnected bodies — the defect was visible in a preview and
+caught by the human, not by tests. Preview-vs-sketch comparison is a mandatory
+step, not a nicety (see [06-lessons-learned.md](06-lessons-learned.md), lesson 1).
+
+## Step 5 — Verification report
 
 `specs/<part>/verification.md` is generated/updated with a table:
 
@@ -31,7 +39,7 @@ The model reads the approved spec; the test suite asserts every dimension (see [
 
 The report also lists: spec version (git hash), model version (git hash), test run result, and any `uncertain` items with their resolution.
 
-## Step 5 — Human acceptance
+## Step 6 — Human acceptance
 
 A human compares preview images and the report against the original drawing. Acceptance is recorded in the report (date + reviewer note). Only accepted parts are considered done.
 

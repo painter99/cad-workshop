@@ -36,6 +36,7 @@ The workshop runs a closed loop. Nothing is "done" because it was written confid
 - Work happens on a branch; every push and merge requires explicit human approval.
 - CI must be green before merge; CI verifies code, the human verifies appearance.
 - The original drawing is versioned together with the spec, so history always shows which drawing a model was built against.
+- **Privacy scan before every push to a public remote**: personal names, contacts and identifiers are anonymized in files and commit messages (M3: done via history rewrite before the first public push). Anonymization is part of the workflow, not a later cleanup — see [06-lessons-learned.md](06-lessons-learned.md), lesson 8.
 
 ## What this workflow deliberately does not do
 
