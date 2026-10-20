@@ -16,14 +16,15 @@ Headless parametric CAD workspace: models are built from written specs, verified
 ## The core loop
 
 ```text
-spec (approved dimensions) → model (build123d) → tests (pytest) → previews (PNG) → human review
+spec (approved dimensions) → drawing (from spec) → model (build123d) → tests (pytest) → previews (PNG) → human review
 ```
 
 1. A drawing or sketch is transcribed into a machine-readable `spec.yaml` and **approved by a human** before any modeling starts.
-2. The model script reads parameters from the spec — never from memory or hard-coded magic numbers.
-3. Tests assert every dimension in the spec against the measured geometry, and a completeness check ensures no dimension is silently untested.
-4. Headless previews are rendered for visual review; a verification report compares drawing dimensions to measured values.
-5. Changes are reviewed as diffs and merged only after CI and human approval.
+2. A dimensioned drawing is generated **from the approved spec** and compared against the original sketch — a veto-friendly visualization of the interpretation, the cheapest place to catch a misread.
+3. The model script reads parameters from the spec — never from memory or hard-coded magic numbers.
+4. Tests assert every dimension in the spec against the measured geometry, and a completeness check ensures no dimension is silently untested.
+5. Headless previews are rendered for visual review; a verification report compares drawing dimensions to measured values.
+6. Changes are reviewed as diffs and merged only after CI and human approval.
 
 Details: [docs/01-workflow.md](docs/01-workflow.md), [docs/04-verification-workflow.md](docs/04-verification-workflow.md).
 
@@ -32,7 +33,7 @@ Details: [docs/01-workflow.md](docs/01-workflow.md), [docs/04-verification-workf
 ```text
 cad-workshop/
 ├── README.md            # this file
-├── docs/                # workflow, environment, testing, verification, modeling rules, lessons, new-part checklist
+├── docs/                # workflow, environment, testing, verification, modeling rules, lessons, new-part checklist, roadmap
 │   └── legacy/          # original study notes (preserved, superseded)
 ├── specs/               # one folder per part: spec.yaml, verification report, previews, visuals
 ├── models/              # build123d model scripts (read spec.yaml)

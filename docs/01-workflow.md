@@ -10,23 +10,33 @@ The workshop runs a closed loop. Nothing is "done" because it was written confid
 - The spec file `specs/<part>/spec.yaml` holds every dimension, tolerance, feature count and note.
 - **Gate:** the transcription is reviewed against the original drawing by a human before modeling starts. A misread drawing digit would otherwise be verified "correctly" by every downstream test.
 
-### 2. Model (build123d)
+### 2. Drawing (from the approved spec)
+
+- A dimensioned drawing is generated **from the spec** (`tools/render_drawing.py`
+  → `specs/<part>/visuals/drawing.png/svg`) — never from the model.
+- The drawing visualizes the *interpretation*: a human compares it against the
+  original sketch before any modeling starts. A misread dimension is caught
+  here, at the cost of one drawing generation — not later, in geometry.
+- When the sketch is private, this drawing is also the public, dimension-bearing
+  artifact of the part (see [04-verification-workflow.md](04-verification-workflow.md)).
+
+### 3. Model (build123d)
 
 - `models/<part>.py` reads parameters from `spec.yaml` — never hard-codes them, never relies on remembered values.
 - Modeling rules that keep models robust are in [docs/05-modeling-rules.md](05-modeling-rules.md).
 
-### 3. Tests (pytest)
+### 4. Tests (pytest)
 
 - One assertion per spec dimension: bounding box, volume, hole counts, validity, export round-trip.
 - A completeness test fails if any spec dimension has no matching assertion.
 - Details and limits: [docs/03-testing.md](03-testing.md).
 
-### 4. Preview (headless render)
+### 5. Preview (headless render)
 
 - The test suite renders PNG previews from the built model (several views) into `exports/`.
 - The preview is evidence for human review, not a substitute for it.
 
-### 5. Verification report and review
+### 6. Verification report and review
 
 - `specs/<part>/verification.md` records: drawing dimension → spec value → measured value → result.
 - A human compares the preview and the report against the original drawing. Only then is the part accepted.
