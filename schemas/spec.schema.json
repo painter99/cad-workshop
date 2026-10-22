@@ -1,0 +1,69 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://github.com/painter99/cad-workshop/schemas/spec.schema.json",
+  "title": "CAD workshop part spec",
+  "description": "Structural contract for specs/<part>/spec.yaml. The spec is the single source of truth for model and tests; structural errors must be caught here (tools/validate_spec.py, also a CI step) before any model reads the file. Semantic correctness (right dimensions, functional sense, matches the sketch) stays a human-gate question.",
+  "type": "object",
+  "required": [
+    "part",
+    "description",
+    "units",
+    "drawing",
+    "dimensions",
+    "features",
+    "tolerance"
+  ],
+  "anyOf": [
+    { "required": ["uncertain"] },
+    { "required": ["assumptions"] }
+  ],
+  "additionalProperties": false,
+  "properties": {
+    "part": {
+      "type": "string",
+      "pattern": "^[a-z][a-z0-9_]*$",
+      "description": "Part identifier. Must match the specs/<part>/ directory name (enforced by tools/validate_spec.py)."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "What the part is, where it came from, and which owner corrections shaped it."
+    },
+    "units": {
+      "const": "mm",
+      "description": "All spec dimensions are millimetres; no other unit is accepted."
+    },
+    "drawing": {
+      "type": "string",
+      "description": "Provenance of the dimension-bearing artifact: 'none' (synthetic spec) or 'generated' (dimensioned drawing rendered from this spec by tools/render_drawing.py; hand sketch kept private by owner decision)."
+    },
+    "dimensions": {
+      "type": "object",
+      "required": ["length", "width"],
+      "minProperties": 3,
+      "additionalProperties": { "type": "number", "exclusiveMinimum": 0 },
+      "description": "Every modelled dimension in mm. Keys are part-specific, but every value must be a positive number; length and width are required by the drawing pipeline, and a solid needs at least three dimensions."
+    },
+    "features": {
+      "type": "object",
+      "minProperties": 1,
+      "additionalProperties": true,
+      "description": "Part-specific features (holes, pockets, ribs, legs...). Deliberately open: per-feature semantics belong to the part's model and tests, not to a shared schema."
+    },
+    "tolerance": {
+      "type": "number",
+      "exclusiveMinimum": 0,
+      "description": "Absolute tolerance (mm) applied to all automated checks against measured geometry."
+    },
+    "uncertain": {
+      "type": "array",
+      "items": { "type": ["string", "object"] },
+      "description": "Items whose interpretation is not settled. Every entry must be resolved (or explicitly accepted) in verification.md before human acceptance. An empty list is the explicit 'nothing uncertain' statement."
+    },
+    "assumptions": {
+      "type": "array",
+      "items": { "type": ["string", "object"] },
+      "description": "Explicit, veto-friendly interpretations of the source sketch. Each veto must cost one parameter change, not re-modeling."
+    }
+  }
+}
