@@ -84,6 +84,18 @@ and contacts (contributor names, emails, commit messages). Doing it as a
 pre-push step — not as a later cleanup — keeps the public history clean from
 the first commit. See [01-workflow.md](01-workflow.md), Git discipline.
 
+## 9. Every spec feature must appear in the drawing
+
+The M4 dimensioned drawing omitted the X-web ribs entirely — the generator
+had no `x_fill` logic, and the drawing review checked dimensions, not
+feature completeness. The owner caught it. The model itself was correct
+(probe-verified); the *review artifact* was incomplete. Rules:
+
+- the drawing must show every feature the spec defines (fill, ribs,
+  holes...) or explicitly note what it does not render;
+- drawing review = dimensions AND feature completeness, checked against the
+  spec's feature list — not against memory of the sketch.
+
 ## Meta-lesson: correction rounds are cheap when the spec is the truth
 
 M3 went through three correction rounds (pocket re-read, leg placement, rib

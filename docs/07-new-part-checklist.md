@@ -17,6 +17,10 @@ produces an artifact that the next step consumes.
 - [ ] Generate the dimensioned drawing **from the approved spec**
       (`tools/render_drawing.py`) and compare it against the sketch
       **before modeling** — veto any misread dimension now, not in geometry.
+- [ ] Check the generated drawing shows **every spec feature** (pockets,
+      fill/ribs, holes...) — a feature missing from the drawing is a review
+      gap even when the model is correct (M4 lesson: X-web ribs missing
+      from the drawing, caught by the owner).
 - [ ] Validate the spec against `schemas/spec.schema.json`
       (`python tools/validate_spec.py`) — CI runs the same gate.
 
