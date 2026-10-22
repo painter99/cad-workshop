@@ -135,10 +135,28 @@ def _clip_poly_rect(points: list[tuple[float, float]],
     return pts
 
 
+def _rib_bar_circular(cx: float, cy: float, r: float, hw: float,
+                      angle_deg: float, steps: int = 12) -> list[tuple[float, float]]:
+    """Rib bar as cut by the circular pocket wall: straight sides ending on
+    the wall, ends closed by the wall arc itself — the visible rib meets the
+    wall exactly, with no chord sliver gap (the model's box end cap is
+    buried in the wall material)."""
+    a = math.radians(angle_deg)
+    half = math.sqrt(max(r * r - hw * hw, 0.0))  # side lines cross the wall here
+    delta = math.atan2(hw, half)                 # angular half-width of the end
+    pts = []
+    for base in (a, a + math.pi):
+        for i in range(steps + 1):
+            t = base - delta + (2 * delta) * i / steps
+            pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
+    return pts
+
+
 def draw_x_fill(ax, pockets: list[dict], x_fill: dict | None) -> None:
     """X-web fill in the top view: two diagonal rib bars (±45°, rib_width
-    wide) per pocket. Bars are clipped to the pocket opening analytically;
-    the wall embed is hidden inside the wall and is not drawn."""
+    wide) per pocket, shown exactly as the model cuts them: sides end on the
+    pocket wall (circle: ends follow the wall arc; slot: full model diagonal
+    clipped by the wall edges). The wall embed is hidden inside the wall."""
     if not x_fill or x_fill.get("style", "web_floor") != "web_floor":
         return
     rib_w = x_fill.get("rib_width", 4)
@@ -151,13 +169,10 @@ def draw_x_fill(ax, pockets: list[dict], x_fill: dict | None) -> None:
         cx = p["x_position"]
         if p["shape"] == "circle":
             r = p["diameter"] / 2
-            # end-cap chord fully inside the circular wall (the sliver
-            # between chord and arc is < 0.2 mm, below drawing precision)
-            half = math.sqrt(max(r * r - (rib_w / 2) ** 2, 0.0))
-            bars = [_rib_bar(cx, 0, half, rib_w, a) for a in (45, -45)]
+            bars = [_rib_bar_circular(cx, 0, r, rib_w / 2, a) for a in (45, -45)]
         else:
             hx, hy = pocket_half_xy(p)
-            half = min(hx, hy) / math.cos(math.pi / 4)
+            half = math.hypot(hx, hy)  # model rib length: the opening diagonal
             bars = []
             for a in (45, -45):
                 quad = _rib_bar(cx, 0, half, rib_w, a)
