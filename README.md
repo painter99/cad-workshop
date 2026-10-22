@@ -11,7 +11,7 @@ Headless parametric CAD workspace: models are built from written specs, verified
 
 - **Code is the single source of truth.** Every model is a readable, versioned Python script. Geometry changes are diffs, not redraws.
 - **Verification over confidence.** Dimensions, volumes, topology and export integrity are checked by automated tests. A model is "done" when the tests pass, not when it looks plausible.
-- **No GUI required.** Modeling, testing, export and preview rendering all run headless. Interactive viewers are optional, never a dependency.
+- **Headless-first, not GUI-free.** Modeling, testing, export and preview rendering all run headless; the human review layer lives on rendered previews and a phone-based 3D viewer. Interactive viewers on the workstation are optional, never a dependency.
 
 ## The core loop
 
