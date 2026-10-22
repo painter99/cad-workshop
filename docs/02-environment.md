@@ -3,7 +3,7 @@
 ## Requirements
 
 - Python 3.10–3.13
-- No display, no GUI toolkit, no containers. Everything runs headless.
+- Runs headless: no display or GUI toolkit is required; interactive viewers are optional, never a dependency. No containers.
 
 ## Setup
 
