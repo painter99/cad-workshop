@@ -96,6 +96,14 @@ feature completeness. The owner caught it. The model itself was correct
 - drawing review = dimensions AND feature completeness, checked against the
   spec's feature list — not against memory of the sketch.
 
+Follow-up (same evening): the first fix drew the rib bars with renderer
+clip paths — matplotlib silently dropped the clip for Rectangle patches
+(verified: `set_clip_path` with a Rectangle ends up `None`, while a Circle
+survives), so rib corners poked outside the slots; the owner caught it at
+zoom. The generator now clips the bars analytically (Sutherland–Hodgman
+against the opening) and the result is checked by a pixel probe in the
+protrusion bands plus a zoomed visual, not by eyeballing the full sheet.
+
 ## Meta-lesson: correction rounds are cheap when the spec is the truth
 
 M3 went through three correction rounds (pocket re-read, leg placement, rib
