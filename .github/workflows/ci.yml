@@ -25,6 +25,9 @@ jobs:
           python -m pip install --upgrade pip
           pip install -r requirements.txt
 
+      - name: Validate specs
+        run: python tools/validate_spec.py
+
       - name: Run test suite
         run: pytest
 

@@ -1,6 +1,7 @@
-build123d>=0.13,<0.14
+build123d==0.13.0
 trimesh>=4.0
 matplotlib>=3.8
 pytest>=8.0
 pyyaml>=6.0
+jsonschema>=4.18
 pytest-github-actions-annotate-failures>=0.2

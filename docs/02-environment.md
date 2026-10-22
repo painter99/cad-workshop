@@ -23,6 +23,7 @@ Installed packages:
 | matplotlib | headless preview rendering and dimensioned drawing generation |
 | pytest | test runner |
 | pyyaml | spec file parsing |
+| jsonschema | spec structural validation (schemas/spec.schema.json) |
 
 ## Sanity check
 
@@ -35,6 +36,7 @@ Expected output: `6.0` (approximately; exact BREP volume of an axis-aligned 1×2
 ## Running the loop locally
 
 ```bash
+python tools/validate_spec.py # structural spec check (also a CI step)
 pytest                      # full suite: geometry tests + preview generation
 pytest tests/test_<part>.py # single part
 ```
@@ -56,4 +58,4 @@ Details and camera conventions: [tools/README-render_blender.md](../tools/README
 
 ## Versioning note
 
-The build123d API changes between minor versions. Model code targets the pinned range in `requirements.txt`; when upgrading, re-run the full test suite — the tests, not memory, decide whether the models still hold.
+The build123d API changes between minor versions. Model code targets the pinned version in `requirements.txt`; when upgrading, re-run the full test suite — the tests, not memory, decide whether the models still hold.

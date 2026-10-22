@@ -6,17 +6,16 @@ once implemented.
 
 ## Now
 
-- **Spec schema validation** — JSON Schema for `spec.yaml`, validated in CI.
-  Catches structural spec errors before the model reads them; the completeness
-  check (every dimension has an assertion) becomes schema-generated.
-  Small, isolated, benefits every future part.
-
-## Next
-
 - **Third part (pattern replication)** — build a new, functionally different
   part through the full loop and record how many correction rounds it needed.
   The strongest evidence that the workflow is a method, not a one-off.
   Reveals which improvements below are actually needed.
+
+*(Shipped 2026-10-22: spec schema validation — `schemas/spec.schema.json`,
+`tools/validate_spec.py`, CI step; documented in
+[03-testing.md](03-testing.md).)*
+
+## Next
 
 - **Fit-check as a test** — virtual interference check (trimesh) of the
   intended contents against each pocket, with FDM tolerance applied
