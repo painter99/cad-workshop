@@ -19,7 +19,7 @@ Headless parametric CAD workspace: models are built from written specs, verified
 spec (approved dimensions) → drawing (from spec) → model (build123d) → tests (pytest) → previews (PNG) → human review
 ```
 
-1. A drawing or sketch is transcribed into a machine-readable `spec.yaml` and **approved by a human** before any modeling starts.
+1. A drawing or sketch is transcribed into a machine-readable `spec.yaml` and **approved by a human** before any modeling starts. The spec's structure is validated against a JSON Schema contract (`tools/validate_spec.py`, also a CI step) before any model reads it.
 2. A dimensioned drawing is generated **from the approved spec** and compared against the original sketch — a veto-friendly visualization of the interpretation, the cheapest place to catch a misread.
 3. The model script reads parameters from the spec — never from memory or hard-coded magic numbers.
 4. Tests assert every dimension in the spec against the measured geometry, and a completeness check ensures no dimension is silently untested.
@@ -35,6 +35,7 @@ cad-workshop/
 ├── README.md            # this file
 ├── docs/                # workflow, environment, testing, verification, modeling rules, lessons, new-part checklist, roadmap
 │   └── legacy/          # original study notes (preserved, superseded)
+├── schemas/             # JSON Schema contract for spec.yaml (enforced by tools/validate_spec.py, also in CI)
 ├── specs/               # one folder per part: spec.yaml, verification report, previews, visuals
 ├── models/              # build123d model scripts (read spec.yaml)
 ├── tests/               # pytest suite: dimension, topology, validity, export checks
@@ -49,6 +50,7 @@ cad-workshop/
 python -m venv .venv && source .venv/bin/activate
 pip install --upgrade pip
 pip install -r requirements.txt
+python tools/validate_spec.py  # validate every spec against the schema
 pytest                # run the verification suite
 ```
 
@@ -56,7 +58,7 @@ Environment details: [docs/02-environment.md](docs/02-environment.md).
 
 ## Continuous integration
 
-Every push to `main` runs the full test suite on GitHub Actions; documentation-only changes skip the suite (`paths-ignore` for `*.md` and `docs/`). CI is the single source of truth for code correctness; visual correctness is judged by a human against the original intent. See [docs/03-testing.md](docs/03-testing.md).
+Every push to `main` validates every spec against its JSON Schema contract and runs the full test suite on GitHub Actions; documentation-only changes skip the suite (`paths-ignore` for `*.md` and `docs/`). CI is the single source of truth for code correctness; visual correctness is judged by a human against the original intent. See [docs/03-testing.md](docs/03-testing.md).
 
 ## Status
 
