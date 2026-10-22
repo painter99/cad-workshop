@@ -3,7 +3,10 @@
 
 Reads ``specs/<part>/spec.yaml`` and renders a third-angle projection
 (top / front / end views) with dimension lines and a pocket schedule,
-using matplotlib only (headless, no CAD viewer).
+using matplotlib only (headless, no CAD viewer). X-web fill
+(spec ``features.x_fill``) is drawn in the top view and annotated; rib
+bars are clipped to the pocket openings analytically, not by renderer
+clip paths.
 
 Usage:
     python tools/render_drawing.py specs/brush_organizer/spec.yaml \
@@ -92,19 +95,50 @@ def _rib_bar(cx: float, cy: float, half_len: float, width: float,
     ]
 
 
-def _opening_half_span(p: dict) -> float:
-    """Half-length of a 45° rib centerline clipped to the pocket opening."""
-    if p["shape"] == "circle":
-        return p["diameter"] / 2
-    hx, hy = pocket_half_xy(p)
-    return min(hx, hy) / math.cos(math.pi / 4)
+def _clip_poly_rect(points: list[tuple[float, float]],
+                    hx: float, hy: float) -> list[tuple[float, float]]:
+    """Clip a polygon against the rect (-hx..hx, -hy..hy), Sutherland–Hodgman.
+
+    Analytic and renderer-independent: matplotlib 3.11 silently drops
+    ``set_clip_path`` with a Rectangle patch (verified: the clip ends up
+    None), so rib bars must be clipped by geometry, not by the renderer.
+    """
+    def isect_x(p, q, x):
+        t = (x - p[0]) / (q[0] - p[0])
+        return (x, p[1] + t * (q[1] - p[1]))
+
+    def isect_y(p, q, y):
+        t = (y - p[1]) / (q[1] - p[1])
+        return (p[0] + t * (q[0] - p[0]), y)
+
+    pts = points
+    for inside, isect in (
+        (lambda v: v[0] >= -hx, lambda p, q: isect_x(p, q, -hx)),
+        (lambda v: v[0] <= hx, lambda p, q: isect_x(p, q, hx)),
+        (lambda v: v[1] >= -hy, lambda p, q: isect_y(p, q, -hy)),
+        (lambda v: v[1] <= hy, lambda p, q: isect_y(p, q, hy)),
+    ):
+        out = []
+        n = len(pts)
+        for i in range(n):
+            cur, prev = pts[i], pts[i - 1]
+            c_in, p_in = inside(cur), inside(prev)
+            if c_in:
+                if not p_in:
+                    out.append(isect(prev, cur))
+                out.append(cur)
+            elif p_in:
+                out.append(isect(prev, cur))
+        pts = out
+        if not pts:
+            return []
+    return pts
 
 
-def draw_x_fill(ax, pockets: list[dict], x_fill: dict | None,
-                opening_patches: dict) -> None:
+def draw_x_fill(ax, pockets: list[dict], x_fill: dict | None) -> None:
     """X-web fill in the top view: two diagonal rib bars (±45°, rib_width
-    wide) per pocket, clipped to the pocket opening — the wall embed is
-    hidden inside the wall and is not drawn."""
+    wide) per pocket. Bars are clipped to the pocket opening analytically;
+    the wall embed is hidden inside the wall and is not drawn."""
     if not x_fill or x_fill.get("style", "web_floor") != "web_floor":
         return
     rib_w = x_fill.get("rib_width", 4)
@@ -114,15 +148,25 @@ def draw_x_fill(ax, pockets: list[dict], x_fill: dict | None,
     else:
         targets = pockets
     for p in targets:
-        clip = opening_patches.get(p["id"])
-        if clip is None:
-            continue
-        for angle in (45, -45):
-            bar = Polygon(_rib_bar(p["x_position"], 0,
-                                   _opening_half_span(p), rib_w, angle),
-                          fill=False, lw=0.7, edgecolor="black")
-            bar.set_clip_path(clip)
-            ax.add_patch(bar)
+        cx = p["x_position"]
+        if p["shape"] == "circle":
+            r = p["diameter"] / 2
+            # end-cap chord fully inside the circular wall (the sliver
+            # between chord and arc is < 0.2 mm, below drawing precision)
+            half = math.sqrt(max(r * r - (rib_w / 2) ** 2, 0.0))
+            bars = [_rib_bar(cx, 0, half, rib_w, a) for a in (45, -45)]
+        else:
+            hx, hy = pocket_half_xy(p)
+            half = min(hx, hy) / math.cos(math.pi / 4)
+            bars = []
+            for a in (45, -45):
+                quad = _rib_bar(cx, 0, half, rib_w, a)
+                quad = _clip_poly_rect([(x - cx, y) for x, y in quad], hx, hy)
+                bars.append([(x + cx, y) for x, y in quad])
+        for quad in bars:
+            if len(quad) >= 3:
+                ax.add_patch(Polygon(quad, fill=False, lw=0.7,
+                                     edgecolor="black"))
 
 
 def fill_note(x_fill: dict | None) -> str | None:
@@ -146,25 +190,20 @@ def draw_top(ax, dims: dict, pockets: list[dict],
     L, W = dims["length"], dims["width"]
     ax.add_patch(Rectangle((-L / 2, -W / 2), L, W, fill=False, lw=1.4,
                            edgecolor="black"))
-    opening_patches: dict[str, Circle | Rectangle] = {}
     for p in pockets:
         cx, cy = p["x_position"], 0
         hx, hy = pocket_half_xy(p)
         if p["shape"] == "circle":
-            opening = Circle((cx, cy), p["diameter"] / 2, fill=False,
-                             lw=0.9, edgecolor="black")
-            ax.add_patch(opening)
-            opening_patches[p["id"]] = opening
+            ax.add_patch(Circle((cx, cy), p["diameter"] / 2, fill=False,
+                                lw=0.9, edgecolor="black"))
             ax.plot([cx], [cy], marker="+", color="black", ms=5, mew=0.7)
         else:
-            opening = Rectangle((cx - hx, cy - hy), 2 * hx, 2 * hy,
-                                fill=False, lw=0.9, edgecolor="black")
-            ax.add_patch(opening)
-            opening_patches[p["id"]] = opening
+            ax.add_patch(Rectangle((cx - hx, cy - hy), 2 * hx, 2 * hy,
+                                   fill=False, lw=0.9, edgecolor="black"))
             ax.plot([cx], [cy], marker="+", color="black", ms=5, mew=0.7)
         leader(ax, (cx + hx * 0.7, cy + hy * 0.7),
                (cx, W / 2 + 14), pocket_label(p))
-    draw_x_fill(ax, pockets, x_fill, opening_patches)
+    draw_x_fill(ax, pockets, x_fill)
     note = fill_note(x_fill)
     if note:
         ax.text(-L / 2 - 43, W / 2 + 26, note, fontsize=5.5,
