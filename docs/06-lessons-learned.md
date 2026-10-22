@@ -104,6 +104,16 @@ zoom. The generator now clips the bars analytically (Sutherland–Hodgman
 against the opening) and the result is checked by a pixel probe in the
 protrusion bands plus a zoomed visual, not by eyeballing the full sheet.
 
+Second follow-up (still the same evening): the circle-pocket bars were
+closed by a straight chord `sqrt(r²−(w/2)²)` inside the wall — at extreme
+zoom the rib end visibly stopped short of the wall arc ("the cross never
+arrives into the material"). Final form, verified by a geometric assertion
+over the rendered polygons: circle ends follow the wall arc exactly (side
+lines cross the wall at `sqrt(r²−(w/2)²)`, the end is sampled along the
+arc); slot bars use the model's full diagonal length clipped to the
+opening. The drawing now matches the model's visible rib — no gap, no
+overshoot.
+
 ## Meta-lesson: correction rounds are cheap when the spec is the truth
 
 M3 went through three correction rounds (pocket re-read, leg placement, rib
