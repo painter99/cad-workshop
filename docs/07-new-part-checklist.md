@@ -17,6 +17,8 @@ produces an artifact that the next step consumes.
 - [ ] Generate the dimensioned drawing **from the approved spec**
       (`tools/render_drawing.py`) and compare it against the sketch
       **before modeling** — veto any misread dimension now, not in geometry.
+- [ ] Validate the spec against `schemas/spec.schema.json`
+      (`python tools/validate_spec.py`) — CI runs the same gate.
 
 ## 2. Model
 
@@ -24,6 +26,9 @@ produces an artifact that the next step consumes.
       `Compound`), reading every parameter from `spec.yaml` — no magic numbers.
 - [ ] Follow [05-modeling-rules.md](05-modeling-rules.md): 2D before 3D,
       fillet/chamfer last, explicit selections with size assertions.
+- [ ] Verify every build123d call against the installed version (`help()`,
+      `inspect.signature`, or that version's documentation) — never from
+      memory; record any surprise in [06-lessons-learned.md](06-lessons-learned.md).
 
 ## 3. Tests
 
@@ -53,6 +58,8 @@ produces an artifact that the next step consumes.
       the resolution of every `uncertain` item.
 - [ ] Add printability notes (FDM bridging spans, hole shrinkage ~0.1–0.2 mm)
       where relevant.
+- [ ] Record the build123d API calls used and that they were verified against
+      the installed version (note the version number).
 
 ## 6. Human acceptance
 

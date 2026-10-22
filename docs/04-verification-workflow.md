@@ -55,7 +55,7 @@ step, not a nicety (see [06-lessons-learned.md](06-lessons-learned.md), lesson 1
 | Hole Ø8 ×2, spacing 60 | 8 / 60 | 8.00 / 60.00 | PASS |
 ```
 
-The report also lists: spec version (git hash), model version (git hash), test run result, and any `uncertain` items with their resolution.
+The report also lists: spec version (git hash), model version (git hash), test run result, any `uncertain` items with their resolution, and the build123d API calls used — verified against the installed library version, which the report notes.
 
 ## Step 6 — Human acceptance
 

@@ -17,6 +17,26 @@
 
 Tests and the model both load `specs/<part>/spec.yaml`. The spec is the only shared source of truth; the tests never restate dimensions independently of it. This is deliberate: it makes a spec error a *review* problem (caught at the approval gate), not a *test* problem — and it keeps the two from drifting apart.
 
+## Spec schema validation
+
+`tools/validate_spec.py` validates every `specs/<part>/spec.yaml` against
+`schemas/spec.schema.json` (JSON Schema Draft 2020-12); CI runs the same check
+before the test suite. It proves, before any model reads the spec:
+
+- the structural frame is intact: required fields present, `units` is `mm`,
+  every dimension is a positive number, tolerance is positive;
+- the `part` field matches the `specs/<part>/` directory name;
+- uncertainty is stated explicitly: the spec carries `uncertain` or
+  `assumptions` (an empty list counts) — silent guessing fails here;
+- no unknown top-level keys (a typo like `tolerences:` fails here, not in a
+  model half an hour later).
+
+It does **not** prove the spec is semantically right: that the dimensions are
+the intended ones, that features make functional sense, or that the spec
+matches the sketch. Those stay human-gate questions (approval gate, drawing
+review). The part-specific structure inside `features` is deliberately open —
+per-feature semantics belong to the part's model and tests.
+
 ## What tests cannot prove
 
 - **Visual correctness.** A model can pass every measurement and still look wrong (misplaced rib, mirrored part where orientation matters). Previews exist for this; a human judges them. It can also pass while being **disconnected into multiple bodies** — per-feature tests never see the whole; hence the mandatory connectivity check above (learned in M3: legs cut off by open quarter sectors passed all dimension tests).
