@@ -17,6 +17,7 @@ the *intent* (approved dimensions), while the previews in drafts/ show the
 """
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 
@@ -25,7 +26,7 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import yaml
-from matplotlib.patches import Circle, Rectangle
+from matplotlib.patches import Circle, Polygon, Rectangle
 
 MM = 1.0  # data units are millimeters
 
@@ -76,26 +77,98 @@ def pocket_half_xy(spec: dict) -> tuple[float, float]:
     return spec["along_x"] / 2, spec["along_y"] / 2
 
 
+def _rib_bar(cx: float, cy: float, half_len: float, width: float,
+             angle_deg: float) -> list[tuple[float, float]]:
+    """Corners of one rib bar: a rectangle centered on (cx, cy), rotated."""
+    a = math.radians(angle_deg)
+    ux, uy = math.cos(a), math.sin(a)
+    vx, vy = -uy, ux
+    hl, hw = half_len, width / 2
+    return [
+        (cx + hl * ux + hw * vx, cy + hl * uy + hw * vy),
+        (cx - hl * ux + hw * vx, cy - hl * uy + hw * vy),
+        (cx - hl * ux - hw * vx, cy - hl * uy - hw * vy),
+        (cx + hl * ux - hw * vx, cy + hl * uy - hw * vy),
+    ]
+
+
+def _opening_half_span(p: dict) -> float:
+    """Half-length of a 45° rib centerline clipped to the pocket opening."""
+    if p["shape"] == "circle":
+        return p["diameter"] / 2
+    hx, hy = pocket_half_xy(p)
+    return min(hx, hy) / math.cos(math.pi / 4)
+
+
+def draw_x_fill(ax, pockets: list[dict], x_fill: dict | None,
+                opening_patches: dict) -> None:
+    """X-web fill in the top view: two diagonal rib bars (±45°, rib_width
+    wide) per pocket, clipped to the pocket opening — the wall embed is
+    hidden inside the wall and is not drawn."""
+    if not x_fill or x_fill.get("style", "web_floor") != "web_floor":
+        return
+    rib_w = x_fill.get("rib_width", 4)
+    if x_fill.get("under", "all") == "deep_only":
+        deepest = max(p["depth"] for p in pockets)
+        targets = [p for p in pockets if p["depth"] == deepest]
+    else:
+        targets = pockets
+    for p in targets:
+        clip = opening_patches.get(p["id"])
+        if clip is None:
+            continue
+        for angle in (45, -45):
+            bar = Polygon(_rib_bar(p["x_position"], 0,
+                                   _opening_half_span(p), rib_w, angle),
+                          fill=False, lw=0.7, edgecolor="black")
+            bar.set_clip_path(clip)
+            ax.add_patch(bar)
+
+
+def fill_note(x_fill: dict | None) -> str | None:
+    """One-line fill note for the top view, derived from the spec."""
+    if not x_fill:
+        return None
+    style = x_fill.get("style", "web_floor")
+    under = x_fill.get("under", "all")
+    if style == "web_floor" and under == "all":
+        return (f"ALL POCKETS: X-web floor — ribs {x_fill.get('rib_width', 4):g} mm wide,"
+                f" block bottom → pocket floor, ends embedded"
+                f" {x_fill.get('rib_embed', 2):g} mm into walls")
+    return f"FILL: see spec features.x_fill (style: {style}, under: {under})"
+
+
 # ---------------------------------------------------------------- views
 
 
-def draw_top(ax, dims: dict, pockets: list[dict]) -> None:
+def draw_top(ax, dims: dict, pockets: list[dict],
+             x_fill: dict | None = None) -> None:
     L, W = dims["length"], dims["width"]
     ax.add_patch(Rectangle((-L / 2, -W / 2), L, W, fill=False, lw=1.4,
                            edgecolor="black"))
+    opening_patches: dict[str, Circle | Rectangle] = {}
     for p in pockets:
         cx, cy = p["x_position"], 0
         hx, hy = pocket_half_xy(p)
         if p["shape"] == "circle":
-            ax.add_patch(Circle((cx, cy), p["diameter"] / 2, fill=False,
-                                lw=0.9, edgecolor="black"))
+            opening = Circle((cx, cy), p["diameter"] / 2, fill=False,
+                             lw=0.9, edgecolor="black")
+            ax.add_patch(opening)
+            opening_patches[p["id"]] = opening
             ax.plot([cx], [cy], marker="+", color="black", ms=5, mew=0.7)
         else:
-            ax.add_patch(Rectangle((cx - hx, cy - hy), 2 * hx, 2 * hy,
-                                   fill=False, lw=0.9, edgecolor="black"))
+            opening = Rectangle((cx - hx, cy - hy), 2 * hx, 2 * hy,
+                                fill=False, lw=0.9, edgecolor="black")
+            ax.add_patch(opening)
+            opening_patches[p["id"]] = opening
             ax.plot([cx], [cy], marker="+", color="black", ms=5, mew=0.7)
         leader(ax, (cx + hx * 0.7, cy + hy * 0.7),
                (cx, W / 2 + 14), pocket_label(p))
+    draw_x_fill(ax, pockets, x_fill, opening_patches)
+    note = fill_note(x_fill)
+    if note:
+        ax.text(-L / 2 - 43, W / 2 + 26, note, fontsize=5.5,
+                family="monospace", color="#333333", va="top")
     # X positions of pocket centers
     xs = sorted({p["x_position"] for p in pockets})
     y_dim = -W / 2 - 12
@@ -201,7 +274,7 @@ def main() -> None:
     ax_end = fig.add_axes([0.70, 0.12, 0.22, 0.32])
     ax_info = fig.add_axes([0.70, 0.50, 0.25, 0.43])
 
-    draw_top(ax_top, dims, pockets)
+    draw_top(ax_top, dims, pockets, feats.get("x_fill"))
     draw_front(ax_front, dims, legs)
     draw_end(ax_end, dims, legs)
 
