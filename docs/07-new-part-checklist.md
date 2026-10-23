@@ -14,13 +14,6 @@ produces an artifact that the next step consumes.
       parameter change, not re-modeling.
 - [ ] **Gate:** a human reviews the transcription against the original
       sketch/drawing. Only after approval is the spec authoritative.
-- [ ] Generate the dimensioned drawing **from the approved spec**
-      (`tools/render_drawing.py`) and compare it against the sketch
-      **before modeling** — veto any misread dimension now, not in geometry.
-- [ ] Check the generated drawing shows **every spec feature** (pockets,
-      fill/ribs, holes...) — a feature missing from the drawing is a review
-      gap even when the model is correct (M4 lesson: X-web ribs missing
-      from the drawing, caught by the owner).
 - [ ] Validate the spec against `schemas/spec.schema.json`
       (`python tools/validate_spec.py`) — CI runs the same gate.
 
@@ -34,7 +27,24 @@ produces an artifact that the next step consumes.
       `inspect.signature`, or that version's documentation) — never from
       memory; record any surprise in [06-lessons-learned.md](06-lessons-learned.md).
 
-## 3. Tests
+## 3. Drawing
+
+- [ ] Generate the drawing from the built model:
+      `python tools/render_drawing.py specs/<part>/spec.yaml` — the views are
+      **projected from the model** (`project_to_viewport`, OCCT hidden-line
+      removal; hidden edges dotted), while dimensions, labels, the schedule
+      and the title block come from the spec (`dimension_plan`).
+- [ ] Check the drawing-completeness gate passes
+      (`pytest tests/test_drawing_completeness.py`): every spec feature must
+      appear in the drawing — openings at spec position/size, ribs where the
+      fill requires them, hidden profiles for internal features (M4 lessons
+      9–10).
+- [ ] Compare the drawing against the original sketch and **zoom into
+      features** (ribs, holes, walls) — rendering defects hide at full-sheet
+      scale (M4: three zoom-caught correction rounds).
+- [ ] Commit `drawing.png`, `drawing.svg` and `drawing.manifest.json`.
+
+## 4. Tests
 
 - [ ] Create `tests/test_<part>.py` asserting **every** spec dimension
       against measured geometry (bounding box, volume, feature counts,
@@ -43,9 +53,9 @@ produces an artifact that the next step consumes.
       expected count) — per-dimension tests cannot see disconnected bodies.
 - [ ] Include the completeness check: the suite fails if any spec dimension
       has no assertion.
-- [ ] Run `pytest` locally until green.
+- [ ] Run `pytest` locally until green (includes the drawing gate).
 
-## 4. Preview and compare
+## 5. Preview and compare
 
 - [ ] Generate previews (`pytest` renders them into `exports/`, or
       `tools/render_preview.py` directly).
@@ -55,7 +65,7 @@ produces an artifact that the next step consumes.
 - [ ] For presentation images, use the Blender pipeline
       ([tools/README-render_blender.md](../tools/README-render_blender.md)).
 
-## 5. Verification report
+## 6. Verification report
 
 - [ ] Write `specs/<part>/verification.md`: drawing dimension → spec value →
       measured value → result, plus spec/model git hashes, test result, and
@@ -65,14 +75,14 @@ produces an artifact that the next step consumes.
 - [ ] Record the build123d API calls used and that they were verified against
       the installed version (note the version number).
 
-## 6. Human acceptance
+## 7. Human acceptance
 
 - [ ] A human compares previews and the report against the original intent.
 - [ ] Record acceptance (date + reviewer note) in `verification.md`.
 - [ ] Only then is the part done; exports (STEP/STL) come from the verified
       model, never from an earlier draft.
 
-## 7. Privacy (public repository)
+## 8. Privacy (public repository)
 
 - [ ] Run the privacy scan before every push: personal names, contacts and
       identifiers anonymized in files and commit messages; hand sketches and

@@ -1,0 +1,198 @@
+{
+  "part": "brush_organizer",
+  "spec": "spec.yaml",
+  "generator": "tools/render_drawing.py",
+  "principle": "views: projected from the model (build123d project_to_viewport, OCCT HLR); annotations: from the spec",
+  "views": {
+    "top": {
+      "visible_edges": 64,
+      "hidden_edges": 120
+    },
+    "front": {
+      "visible_edges": 10,
+      "hidden_edges": 270
+    },
+    "end": {
+      "visible_edges": 12,
+      "hidden_edges": 288
+    }
+  },
+  "probes": {
+    "pockets": {
+      "P1": {
+        "top_opening_edges": 9,
+        "top_opening_position_size_ok": true,
+        "front_hidden_profile_edges": 14
+      },
+      "P2": {
+        "top_opening_edges": 12,
+        "top_opening_position_size_ok": true,
+        "front_hidden_profile_edges": 18
+      },
+      "P3": {
+        "top_opening_edges": 12,
+        "top_opening_position_size_ok": true,
+        "front_hidden_profile_edges": 18
+      },
+      "P4": {
+        "top_opening_edges": 9,
+        "top_opening_position_size_ok": true,
+        "front_hidden_profile_edges": 14
+      },
+      "P5": {
+        "top_opening_edges": 9,
+        "top_opening_position_size_ok": true,
+        "front_hidden_profile_edges": 14
+      },
+      "P6": {
+        "top_opening_edges": 9,
+        "top_opening_position_size_ok": true,
+        "front_hidden_profile_edges": 14
+      }
+    },
+    "x_fill": {
+      "P1": {
+        "expected": true,
+        "diag_edges_in_top": 8
+      },
+      "P2": {
+        "expected": true,
+        "diag_edges_in_top": 8
+      },
+      "P3": {
+        "expected": true,
+        "diag_edges_in_top": 8
+      },
+      "P4": {
+        "expected": true,
+        "diag_edges_in_top": 8
+      },
+      "P5": {
+        "expected": true,
+        "diag_edges_in_top": 8
+      },
+      "P6": {
+        "expected": true,
+        "diag_edges_in_top": 8
+      }
+    },
+    "legs": {
+      "front_visible_edges": 2,
+      "end_visible_edges": 4
+    },
+    "outline": {
+      "top": {
+        "span_x_ok": true,
+        "span_y_ok": true
+      },
+      "front": {
+        "span_x_ok": true,
+        "span_y_ok": true
+      },
+      "end": {
+        "span_x_ok": true,
+        "span_y_ok": true
+      }
+    }
+  },
+  "annotations": {
+    "dimensions": [
+      {
+        "view": "top",
+        "tag": "pitch",
+        "text": "40"
+      },
+      {
+        "view": "top",
+        "tag": "length",
+        "text": "250"
+      },
+      {
+        "view": "top",
+        "tag": "width",
+        "text": "55"
+      },
+      {
+        "view": "front",
+        "tag": "height",
+        "text": "35"
+      },
+      {
+        "view": "front",
+        "tag": "length",
+        "text": "250"
+      },
+      {
+        "view": "end",
+        "tag": "total_height",
+        "text": "40"
+      },
+      {
+        "view": "end",
+        "tag": "width",
+        "text": "55"
+      },
+      {
+        "view": "front",
+        "tag": "leg_height",
+        "text": "5"
+      },
+      {
+        "view": "front",
+        "tag": "leg_diameter",
+        "text": "Ø5"
+      },
+      {
+        "view": "front",
+        "tag": "leg_inset",
+        "text": "5"
+      }
+    ],
+    "pocket_labels": [
+      {
+        "id": "P1",
+        "text": "Ø35"
+      },
+      {
+        "id": "P2",
+        "text": "15×12"
+      },
+      {
+        "id": "P3",
+        "text": "15×12"
+      },
+      {
+        "id": "P4",
+        "text": "Ø22"
+      },
+      {
+        "id": "P5",
+        "text": "Ø30"
+      },
+      {
+        "id": "P6",
+        "text": "Ø35"
+      }
+    ],
+    "schedule_rows": 7,
+    "fill_note": "ALL POCKETS: X-web floor — ribs 4 mm wide, block bottom → pocket floor, ends embedded 2 mm into walls",
+    "drawn_tags": {
+      "top": [
+        "pitch",
+        "length",
+        "width"
+      ],
+      "front": [
+        "height",
+        "leg_height",
+        "leg_inset",
+        "leg_diameter",
+        "length"
+      ],
+      "end": [
+        "total_height",
+        "width"
+      ]
+    }
+  }
+}
