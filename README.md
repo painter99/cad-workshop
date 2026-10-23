@@ -90,3 +90,9 @@ This workshop grew out of an earlier experiment: [semishape](https://github.com/
 ## License
 
 MIT — see [LICENSE](LICENSE).
+
+Third-party assets: `assets/fonts/osifont.ttf` — ISO 3098 lettering font,
+GPL-3.0 **with font exception** (© hikikomori82; license text in
+[assets/fonts/osifont-LICENSE.txt](assets/fonts/osifont-LICENSE.txt)). The
+font exception keeps generated drawings (PNG/SVG/PDF) under this
+repository's MIT license.

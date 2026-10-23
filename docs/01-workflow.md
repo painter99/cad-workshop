@@ -41,6 +41,14 @@ The workshop runs a closed loop. Nothing is "done" because it was written confid
   long-dashed dotted narrow (type 04.1), dimension/extension/leader lines
   continuous narrow (type 01.1); two widths at a 1:2 ratio (≈0.7/0.35 mm),
   dash lengths per ISO 128-20 (12d/3d dashed, 24d long-dash).
+- Lettering follows ISO 3098 via **osifont** (shipped in `assets/fonts/`,
+  GPL-3.0 with font exception — see `assets/fonts/osifont-LICENSE.txt`);
+  the manifest declares the font. Closed circular edges get a dash-phase
+  correction so the seam falls mid-gap instead of reading as a 'C' artifact
+  on small hidden circles.
+- The sheet follows ISO 5457: A4 landscape (297×210 mm), frame with a 10 mm
+  margin and centring marks at the side midpoints (declared as conventions
+  in the manifest; the full standard text is not in the repo).
 - When the sketch is private, this drawing is also the public, dimension-bearing
   artifact of the part (see [04-verification-workflow.md](04-verification-workflow.md)).
 

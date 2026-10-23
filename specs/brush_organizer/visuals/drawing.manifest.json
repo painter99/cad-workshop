@@ -4,6 +4,19 @@
   "generator": "tools/render_drawing.py",
   "principle": "views: projected from the model (build123d project_to_viewport, OCCT HLR); annotations: from the spec",
   "scale": "1:2 (ISO 5455)",
+  "font": {
+    "name": "osifont",
+    "standard": "ISO 3098 lettering (osifont)",
+    "license": "GPL-3.0 with font exception (assets/fonts/osifont-LICENSE.txt)"
+  },
+  "sheet": {
+    "size": "A4 landscape, 297×210 mm (ISO 5457)",
+    "frame": "10 mm margin (convention — full ISO 5457 text not in repo)",
+    "centring_marks": "omitted — optional per ISO 5457; a generated PDF is not a preprinted trimmed sheet",
+    "small_circles": "hidden circles with circumference < 3 dash periods drawn solid narrow (legibility convention)",
+    "frame_clearance": "every drawn element ≥2 mm inside the frame (mechanical gate)",
+    "frame_clearance_ok": true
+  },
   "line_styles": {
     "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
     "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",

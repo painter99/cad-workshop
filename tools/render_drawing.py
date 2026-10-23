@@ -38,6 +38,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 import yaml
 from build123d import GeomType
 from matplotlib.patches import Circle, Polygon, Rectangle
@@ -57,6 +58,17 @@ CENTERLINE = dict(color="black", lw=1.0,
 DIMLINE = dict(color="#1a1a1a", lw=1.0)      # 01.1 continuous narrow
 
 SCALE = 0.5  # 1:2 — ISO 5455 preferred reduction scale, declared in the title block
+
+# ISO 3098 lettering: osifont (GPL-3.0 with font exception — see
+# assets/fonts/osifont-LICENSE.txt). Falls back to the matplotlib default if
+# the asset is missing; the test suite asserts the asset is present.
+FONT_PATH = Path(__file__).resolve().parents[1] / "assets" / "fonts" / "osifont.ttf"
+FONT_NAME = "osifont"
+if FONT_PATH.exists():
+    font_manager.fontManager.addfont(str(FONT_PATH))
+    FONT_NAME = font_manager.FontProperties(fname=str(FONT_PATH)).get_name()
+matplotlib.rcParams["font.family"] = FONT_NAME
+matplotlib.rcParams["axes.unicode_minus"] = False  # osifont lacks U+2212; ASCII hyphen (tick labels are hidden anyway, but tight-bbox extents still resolve them)
 
 
 def apply_scale(fig, ax, rect, scale: float = SCALE) -> None:
@@ -246,13 +258,55 @@ def project_views(part, dims: dict) -> dict[str, tuple[list, list]]:
     }
 
 
+def small_circle_solid(length_mm: float, linestyle) -> bool:
+    """Hidden circles too small for a legible dash pattern are drawn solid.
+
+    A closed circle with a circumference under 3 dash periods cannot carry
+    the 12d/3d pattern legibly (the seam dominates — the 'C' artifact on the
+    Ø5 legs); practice (ASME Y14.2) substitutes a continuous narrow line.
+    Declared as a convention in the manifest.
+    """
+    if not isinstance(linestyle, tuple) or len(linestyle) != 2 or not linestyle[1]:
+        return False
+    return length_mm * SCALE * 72 / 25.4 < 3 * sum(linestyle[1])
+
+
+def closed_dash_offset(edge, linestyle) -> float | None:
+    """Phase shift putting the seam of a closed circular edge mid-gap.
+
+    Dash patterns start at the path start; on a closed curve the seam gets
+    the leftover segment (circumference mod period) in an arbitrary phase,
+    which read as the 'C' artifact on small hidden circles (legs Ø5, top
+    view). Shifting by (gap midpoint − seam position) centres the seam in a
+    gap, symmetric on both sides. Lengths: data mm × scale × 72/25.4 = pt.
+    """
+    if not isinstance(linestyle, tuple) or len(linestyle) != 2:
+        return None
+    _offset, seq = linestyle
+    if not seq or len(seq) % 2 or sum(seq) <= 0:
+        return None
+    period = float(sum(seq))
+    gap_mid = sum(seq[:-1]) + seq[-1] / 2
+    seam = (edge.length * SCALE * 72 / 25.4) % period
+    return (gap_mid - seam) % period
+
+
 def plot_edges(ax, edges, step: float = 1.0, max_points: int = 96, **style) -> int:
     """Sample and plot projected edges; returns the number of edges drawn."""
     for e in edges:
+        st = style
+        if e.geom_type == GeomType.CIRCLE and e.is_closed:
+            ls = style.get("linestyle")
+            if small_circle_solid(e.length, ls):
+                st = {k: v for k, v in style.items() if k != "linestyle"}
+            else:
+                off = closed_dash_offset(e, ls)
+                if off is not None:
+                    st = dict(style, linestyle=(off, ls[1]))
         n = min(max_points, max(2, math.ceil(e.length / step) + 1))
         pts = [(v.X, v.Y) for v in (e @ (i / (n - 1)) for i in range(n))]
         xs, ys = zip(*pts)
-        ax.plot(xs, ys, **style)
+        ax.plot(xs, ys, **st)
     return len(edges)
 
 
@@ -375,6 +429,20 @@ def build_manifest(views: dict, probes: dict, spec: dict,
         "principle": ("views: projected from the model (build123d "
                       "project_to_viewport, OCCT HLR); annotations: from the spec"),
         "scale": "1:2 (ISO 5455)",
+        "font": {
+            "name": FONT_NAME,
+            "standard": "ISO 3098 lettering (osifont)",
+            "license": "GPL-3.0 with font exception (assets/fonts/osifont-LICENSE.txt)",
+        },
+        "sheet": {
+            "size": "A4 landscape, 297×210 mm (ISO 5457)",
+            "frame": "10 mm margin (convention — full ISO 5457 text not in repo)",
+            "centring_marks": "omitted — optional per ISO 5457; a generated PDF is not a preprinted trimmed sheet",
+            "small_circles": (
+                "hidden circles with circumference < 3 dash periods drawn "
+                "solid narrow (legibility convention)"),
+            "frame_clearance": "every drawn element ≥2 mm inside the frame (mechanical gate)",
+        },
         "line_styles": {
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
             "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
@@ -421,7 +489,7 @@ def draw_top(ax, view, spec: dict) -> list[str]:
     note = fill_note(feats.get("x_fill"))
     if note:
         ax.text(-L / 2 - 43, W / 2 + 26, note, fontsize=8,
-                family="monospace", color="#333333", va="top")
+                color="#333333", va="top")
     xs = sorted({p["x_position"] for p in pockets})
     y_dim = -W / 2 - 12
     if "pitch" in plan:
@@ -501,29 +569,52 @@ def draw_schedule(ax, pockets: list[dict], x0: float, y0: float) -> None:
     for r, row in enumerate(rows):
         for c, val in enumerate(row):
             ax.text(x0 + c * cell_w, y0 - r * cell_h, val,
-                    fontsize=9, family="monospace",
+                    fontsize=9,
                     fontweight="bold" if r == 0 else "normal", va="top")
     ax.text(x0, y0 + cell_h * 1.2, "POCKET SCHEDULE", fontsize=10,
             fontweight="bold")
+
+
+def _snap_data(ax, value: float, axis: str) -> float:
+    """Snap an ax data coordinate so it lands on the render pixel grid.
+
+    A line half a pixel off renders antialiased (one fully dark core px +
+    two half-intensity edges) and reads as a thinner line than its neighbour
+    on a whole-pixel position — the owner caught exactly that on the title
+    block's last vertical. Snapping makes equal-width lines render equally.
+    """
+    fig = ax.figure
+    pos = ax.get_position()
+    if axis == "x":
+        lo, hi = ax.get_xlim()
+        span = fig.get_figwidth() * 25.4
+        off, size = pos.x0, pos.width
+    else:
+        lo, hi = ax.get_ylim()
+        span = fig.get_figheight() * 25.4
+        off, size = pos.y0, pos.height
+    paper = (off + (value - lo) / (hi - lo) * size) * span
+    px = round(paper * fig.dpi / 25.4)
+    frac = (px * 25.4 / fig.dpi / span - off) / size
+    return frac * (hi - lo) + lo
 
 
 def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
     """Simplified ISO 7200 title block: framed grid with labelled fields
     (TITLE, DWG NO, SCALE, DATE, SOURCE) and the third-angle projection
     symbol (ISO 128-30 B.3) in the last cell. DWG NO is a placeholder —
-    the spec carries no drawing number."""
+    the spec carries no drawing number. All grid lines are pixel-snapped
+    so equal widths render equally."""
     cols, rows = [40, 26, 26], [8, 8]
     w, h = sum(cols), sum(rows)
-    ax.add_patch(Rectangle((x0, y0 - h), w, h, fill=False, lw=1.0,
-                           edgecolor="black"))
-    xa = x0
-    for c in cols[:-1]:
-        xa += c
-        ax.plot([xa, xa], [y0 - h, y0], **DIMLINE)
-    ya = y0
-    for r in rows[:-1]:
-        ya -= r
-        ax.plot([x0, x0 + w], [ya, ya], **DIMLINE)
+    xs = [_snap_data(ax, x0 + sum(cols[:i]), "x") for i in range(len(cols) + 1)]
+    ys = [_snap_data(ax, y0 - sum(rows[:i]), "y") for i in range(len(rows) + 1)]
+    ax.add_patch(Rectangle((xs[0], ys[-1]), xs[-1] - xs[0], ys[0] - ys[-1],
+                           fill=False, lw=1.0, edgecolor="black"))
+    for xa in xs[1:-1]:
+        ax.plot([xa, xa], [ys[-1], ys[0]], **DIMLINE)
+    for ya in ys[1:-1]:
+        ax.plot([xs[0], xs[-1]], [ya, ya], **DIMLINE)
     fields = [  # (col, row, label, value) — label above value
         (0, 0, "TITLE", part.upper().replace("_", " ")),
         (1, 0, "DWG NO", "BO-001"),
@@ -532,14 +623,83 @@ def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
         (1, 1, "SOURCE", spec_path.name),
     ]
     for col, row, label, value in fields:
-        cx = x0 + 2 + sum(cols[:col])
-        top = y0 - sum(rows[:row])
-        ax.text(cx, top - 1.5, label, fontsize=6, family="monospace",
+        cx = xs[col] + 2
+        top = ys[row]
+        ax.text(cx, top - 1.5, label, fontsize=6,
                 color="#555555", va="top")
-        ax.text(cx, top - 5, value, fontsize=9, family="monospace",
+        ax.text(cx, top - 5, value, fontsize=9,
                 fontweight="bold", va="top")
     # third-angle symbol instead of text in the last cell
-    draw_projection_symbol(ax, x0 + cols[0] + cols[1] + 12, y0 - rows[0] - 4, 6)
+    draw_projection_symbol(ax, xs[2] + 12, ys[1] - 4, 6)
+
+
+# ---------------------------------------------------------------- sheet
+
+
+def draw_sheet_frame(fig):
+    """ISO 5457 sheet furniture: frame with a 10 mm margin.
+
+    Centring marks are OMITTED: they are optional per ISO 5457 (the sheet is
+    a generated PDF, not a preprinted trimmed sheet) and their collision
+    surface cost the owner two review rounds. Declared in the manifest.
+    """
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.axis("off")
+    ax.set_xlim(0, 297)
+    ax.set_ylim(0, 210)
+    ax.add_patch(Rectangle((10, 10), 277, 190, fill=False, lw=1.0,
+                           edgecolor="black"))
+    return ax
+
+
+def frame_collision_violations(fig, frame_ax) -> list[str]:
+    """Nothing may touch the ISO 5457 frame (10/287 × 10/200, 2 mm clearance).
+
+    Mechanical layout gate over EVERY drawn element — texts, lines, patches
+    and annotation arrows (the frame axes itself excluded) — converted to
+    paper mm and checked against the frame lines minus a 2 mm clearance.
+    Catches the 'element running into the frame' defect class (texts, the
+    projection symbol, anything) that geometry probes cannot see.
+    """
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    from matplotlib.spines import Spine
+    from matplotlib.text import Text
+    renderer = fig.canvas.get_renderer()
+    px_mm = 25.4 / fig.dpi
+    # Axes/figure background patches are not content — excluded.
+    background = {fig.patch} | {ax.patch for ax in fig.axes}
+    # Tick labels of axis-off axes are never drawn (only their extents are
+    # resolved during the tight-bbox pass) — excluded from the gate.
+    skip = set()
+    for ax in fig.axes:
+        if ax is frame_ax or not ax.axison:
+            for axis in (ax.xaxis, ax.yaxis):
+                for tick in axis.get_major_ticks() + axis.get_minor_ticks():
+                    skip.update((tick.label1, tick.label2,
+                                 tick.tick1line, tick.tick2line, tick.gridline))
+    violations = []
+    for obj in fig.findobj(match=lambda o: isinstance(o, (Text, Line2D, Patch))
+                           and not isinstance(o, Spine)):
+        if (getattr(obj, "axes", None) is frame_ax or obj in skip
+                or obj in background or not obj.get_visible()):
+            continue
+        if isinstance(obj, Text) and not (obj.get_text() or "").strip():
+            continue
+        try:
+            bb = obj.get_window_extent(renderer=renderer)
+        except Exception:
+            continue
+        if bb.width <= 0 and bb.height <= 0:
+            continue
+        x0, x1 = bb.x0 * px_mm, bb.x1 * px_mm
+        y0, y1 = bb.y0 * px_mm, bb.y1 * px_mm
+        if x0 < 12 or x1 > 285 or y0 < 12 or y1 > 198:
+            label = obj.get_text()[:40] if isinstance(obj, Text) else type(obj).__name__
+            violations.append(
+                f"{type(obj).__name__} '{label}' bbox mm "
+                f"({x0:.1f},{y0:.1f})..({x1:.1f},{y1:.1f}) breaks frame clearance")
+    return violations
 
 
 # ---------------------------------------------------------------- main
@@ -557,15 +717,16 @@ def main() -> None:
     probes = probe_views(views, spec)
 
     fig = plt.figure(figsize=(11.69, 8.27), dpi=150)  # A4 landscape
+    frame_ax = draw_sheet_frame(fig)
     fig.suptitle(
         f"{spec['part']} — dimensioned drawing "
         "(views: projected from model, dimensions: from spec)",
-        fontsize=12, fontweight="bold",
+        fontsize=12, fontweight="bold", y=0.92,
     )
-    ax_top = fig.add_axes([0.05, 0.55, 0.60, 0.38])
+    ax_top = fig.add_axes([0.05, 0.52, 0.60, 0.35])
     ax_front = fig.add_axes([0.05, 0.12, 0.60, 0.32])
     ax_end = fig.add_axes([0.70, 0.12, 0.22, 0.32])
-    ax_info = fig.add_axes([0.70, 0.50, 0.25, 0.43])
+    ax_info = fig.add_axes([0.70, 0.47, 0.25, 0.40])
 
     drawn = {
         "top": draw_top(ax_top, views["top"], spec),
@@ -582,18 +743,24 @@ def main() -> None:
 
     # ISO 5455: every view at the declared 1:2 scale — data range from the
     # axes paper size, centred on the content midpoints the draw functions set
-    apply_scale(fig, ax_top, (0.05, 0.55, 0.60, 0.38))
+    apply_scale(fig, ax_top, (0.05, 0.52, 0.60, 0.35))
     apply_scale(fig, ax_front, (0.05, 0.12, 0.60, 0.32))
     apply_scale(fig, ax_end, (0.70, 0.12, 0.22, 0.32))
 
     ax_info.axis("off")
-    ax_info.set_xlim(-2, 92)
-    ax_info.set_ylim(-64, 4)  # title block: 2 rows x 8 from y=-46 -> bottom -62
+    ax_info.set_xlim(-2, 93)  # 93: right frame edge must NOT sit on the axes
+    # edge — matplotlib clips at the axes and would shave half the line width
+    ax_info.set_ylim(-64, 10)  # schedule title (y=7.2) stays inside the axes
     draw_schedule(ax_info, spec["features"]["pockets"], 0.0, 0.0)
     draw_title_block(ax_info, spec["part"], spec_path, 0.0, -46)
 
     manifest = build_manifest(views, probes, spec, spec_path)
     manifest["annotations"]["drawn_tags"] = drawn
+
+    violations = frame_collision_violations(fig, frame_ax)
+    for v in violations:
+        print(f"PROBE FAILED: {v}", file=sys.stderr)
+    manifest["sheet"]["frame_clearance_ok"] = not violations
 
     failed = [
         f"{pid}: opening" for pid, pr in probes["pockets"].items()
