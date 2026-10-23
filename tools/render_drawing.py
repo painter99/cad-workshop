@@ -38,6 +38,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib import font_manager
 import yaml
 from build123d import GeomType
 from matplotlib.patches import Circle, Polygon, Rectangle
@@ -57,6 +58,16 @@ CENTERLINE = dict(color="black", lw=1.0,
 DIMLINE = dict(color="#1a1a1a", lw=1.0)      # 01.1 continuous narrow
 
 SCALE = 0.5  # 1:2 — ISO 5455 preferred reduction scale, declared in the title block
+
+# ISO 3098 lettering: osifont (GPL-3.0 with font exception — see
+# assets/fonts/osifont-LICENSE.txt). Falls back to the matplotlib default if
+# the asset is missing; the test suite asserts the asset is present.
+FONT_PATH = Path(__file__).resolve().parents[1] / "assets" / "fonts" / "osifont.ttf"
+FONT_NAME = "osifont"
+if FONT_PATH.exists():
+    font_manager.fontManager.addfont(str(FONT_PATH))
+    FONT_NAME = font_manager.FontProperties(fname=str(FONT_PATH)).get_name()
+matplotlib.rcParams["font.family"] = FONT_NAME
 
 
 def apply_scale(fig, ax, rect, scale: float = SCALE) -> None:
@@ -246,13 +257,38 @@ def project_views(part, dims: dict) -> dict[str, tuple[list, list]]:
     }
 
 
+def closed_dash_offset(edge, linestyle) -> float | None:
+    """Phase shift putting the seam of a closed circular edge mid-gap.
+
+    Dash patterns start at the path start; on a closed curve the seam gets
+    the leftover segment (circumference mod period) in an arbitrary phase,
+    which read as the 'C' artifact on small hidden circles (legs Ø5, top
+    view). Shifting by (gap midpoint − seam position) centres the seam in a
+    gap, symmetric on both sides. Lengths: data mm × scale × 72/25.4 = pt.
+    """
+    if not isinstance(linestyle, tuple) or len(linestyle) != 2:
+        return None
+    _offset, seq = linestyle
+    if not seq or len(seq) % 2 or sum(seq) <= 0:
+        return None
+    period = float(sum(seq))
+    gap_mid = sum(seq[:-1]) + seq[-1] / 2
+    seam = (edge.length * SCALE * 72 / 25.4) % period
+    return (gap_mid - seam) % period
+
+
 def plot_edges(ax, edges, step: float = 1.0, max_points: int = 96, **style) -> int:
     """Sample and plot projected edges; returns the number of edges drawn."""
     for e in edges:
+        st = style
+        if e.geom_type == GeomType.CIRCLE and e.is_closed:
+            off = closed_dash_offset(e, style.get("linestyle"))
+            if off is not None:
+                st = dict(style, linestyle=(off, style["linestyle"][1]))
         n = min(max_points, max(2, math.ceil(e.length / step) + 1))
         pts = [(v.X, v.Y) for v in (e @ (i / (n - 1)) for i in range(n))]
         xs, ys = zip(*pts)
-        ax.plot(xs, ys, **style)
+        ax.plot(xs, ys, **st)
     return len(edges)
 
 
@@ -375,6 +411,16 @@ def build_manifest(views: dict, probes: dict, spec: dict,
         "principle": ("views: projected from the model (build123d "
                       "project_to_viewport, OCCT HLR); annotations: from the spec"),
         "scale": "1:2 (ISO 5455)",
+        "font": {
+            "name": FONT_NAME,
+            "standard": "ISO 3098 lettering (osifont)",
+            "license": "GPL-3.0 with font exception (assets/fonts/osifont-LICENSE.txt)",
+        },
+        "sheet": {
+            "size": "A4 landscape, 297×210 mm (ISO 5457)",
+            "frame": "10 mm margin (convention — full ISO 5457 text not in repo)",
+            "centring_marks": "centring marks: 4 × 10 mm strokes at the side midpoints",
+        },
         "line_styles": {
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
             "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
@@ -421,7 +467,7 @@ def draw_top(ax, view, spec: dict) -> list[str]:
     note = fill_note(feats.get("x_fill"))
     if note:
         ax.text(-L / 2 - 43, W / 2 + 26, note, fontsize=8,
-                family="monospace", color="#333333", va="top")
+                color="#333333", va="top")
     xs = sorted({p["x_position"] for p in pockets})
     y_dim = -W / 2 - 12
     if "pitch" in plan:
@@ -501,7 +547,7 @@ def draw_schedule(ax, pockets: list[dict], x0: float, y0: float) -> None:
     for r, row in enumerate(rows):
         for c, val in enumerate(row):
             ax.text(x0 + c * cell_w, y0 - r * cell_h, val,
-                    fontsize=9, family="monospace",
+                    fontsize=9,
                     fontweight="bold" if r == 0 else "normal", va="top")
     ax.text(x0, y0 + cell_h * 1.2, "POCKET SCHEDULE", fontsize=10,
             fontweight="bold")
@@ -534,12 +580,36 @@ def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
     for col, row, label, value in fields:
         cx = x0 + 2 + sum(cols[:col])
         top = y0 - sum(rows[:row])
-        ax.text(cx, top - 1.5, label, fontsize=6, family="monospace",
+        ax.text(cx, top - 1.5, label, fontsize=6,
                 color="#555555", va="top")
-        ax.text(cx, top - 5, value, fontsize=9, family="monospace",
+        ax.text(cx, top - 5, value, fontsize=9,
                 fontweight="bold", va="top")
     # third-angle symbol instead of text in the last cell
     draw_projection_symbol(ax, x0 + cols[0] + cols[1] + 12, y0 - rows[0] - 4, 6)
+
+
+# ---------------------------------------------------------------- sheet
+
+
+def draw_sheet_frame(fig) -> None:
+    """ISO 5457 sheet furniture: frame with a 10 mm margin and centring
+    marks (10 mm strokes at the midpoints of the four sides).
+
+    Convention note: the full ISO 5457 text is not in the repo — the 10 mm
+    margin and inner centring marks are declared as conventions in the
+    manifest, same as the line styles.
+    """
+    ax = fig.add_axes([0, 0, 1, 1])
+    ax.axis("off")
+    ax.set_xlim(0, 297)
+    ax.set_ylim(0, 210)
+    ax.add_patch(Rectangle((10, 10), 277, 190, fill=False, lw=1.0,
+                           edgecolor="black"))
+    cx, cy = 297 / 2, 210 / 2
+    ax.plot([cx, cx], [10, 20], **DIMLINE)
+    ax.plot([cx, cx], [190, 200], **DIMLINE)
+    ax.plot([10, 20], [cy, cy], **DIMLINE)
+    ax.plot([277, 287], [cy, cy], **DIMLINE)
 
 
 # ---------------------------------------------------------------- main
@@ -557,10 +627,11 @@ def main() -> None:
     probes = probe_views(views, spec)
 
     fig = plt.figure(figsize=(11.69, 8.27), dpi=150)  # A4 landscape
+    draw_sheet_frame(fig)
     fig.suptitle(
         f"{spec['part']} — dimensioned drawing "
         "(views: projected from model, dimensions: from spec)",
-        fontsize=12, fontweight="bold",
+        fontsize=12, fontweight="bold", y=0.935,
     )
     ax_top = fig.add_axes([0.05, 0.55, 0.60, 0.38])
     ax_front = fig.add_axes([0.05, 0.12, 0.60, 0.32])
