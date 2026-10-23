@@ -1,25 +1,34 @@
 #!/usr/bin/env python3
-"""Generate a dimensioned technical drawing from a part spec.
+"""Generate a dimensioned technical drawing for a part.
 
-Reads ``specs/<part>/spec.yaml`` and renders a third-angle projection
-(top / front / end views) with dimension lines and a pocket schedule,
-using matplotlib only (headless, no CAD viewer). X-web fill
-(spec ``features.x_fill``) is drawn in the top view and annotated; rib
-bars are clipped to the pocket openings analytically, not by renderer
-clip paths.
+Views are TRUE projections of the built model (build123d
+``project_to_viewport``, OCCT hidden-line removal): visible edges solid,
+hidden edges dotted. The model is built from the approved spec, so a feature
+cannot go missing from the drawing — the views are not drawn by hand.
+Dimensions, pocket labels, the schedule and the title block are generated
+from the spec (the intent).
+
+Principle (docs/01): *view geometry from the model, annotations from the
+spec.* When a view disagrees with a spec dimension, either the model or the
+spec is wrong — the completeness probes make that visible mechanically
+(``tests/test_drawing_completeness.py``).
+
+The renderer also writes a manifest (``<out_prefix>.manifest.json``) with
+per-view edge counts, objective geometry probes and the annotation plan.
 
 Usage:
-    python tools/render_drawing.py specs/brush_organizer/spec.yaml \
-        [out_prefix]
+    python tools/render_drawing.py specs/<part>/spec.yaml [out_prefix]
 
-Output: <out_prefix>_drawing.png (and .svg)
+Output: <out_prefix>.png, <out_prefix>.svg, <out_prefix>.manifest.json
+(default out_prefix: specs/<part>/visuals/drawing).
 
-The drawing is generated from the spec, never from the model — it shows
-the *intent* (approved dimensions), while the previews in drafts/ show the
-*measured result*. Differences between the two are what review is for.
+The model builder is resolved by convention: ``models/<part>.build(spec)``.
+The annotation plan assumes the spec carries pockets and legs (current parts).
 """
 from __future__ import annotations
 
+import importlib
+import json
 import math
 import sys
 from pathlib import Path
@@ -29,9 +38,13 @@ import matplotlib
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import yaml
-from matplotlib.patches import Circle, Polygon, Rectangle
+from build123d import GeomType
 
-MM = 1.0  # data units are millimeters
+TOL = 0.05  # mm — probe tolerance
+
+SOLID = dict(color="black", lw=0.9)
+HIDDEN = dict(color="#555555", lw=0.6, linestyle=(0, (1, 2)))
+
 
 # ---------------------------------------------------------------- helpers
 
@@ -80,110 +93,6 @@ def pocket_half_xy(spec: dict) -> tuple[float, float]:
     return spec["along_x"] / 2, spec["along_y"] / 2
 
 
-def _rib_bar(cx: float, cy: float, half_len: float, width: float,
-             angle_deg: float) -> list[tuple[float, float]]:
-    """Corners of one rib bar: a rectangle centered on (cx, cy), rotated."""
-    a = math.radians(angle_deg)
-    ux, uy = math.cos(a), math.sin(a)
-    vx, vy = -uy, ux
-    hl, hw = half_len, width / 2
-    return [
-        (cx + hl * ux + hw * vx, cy + hl * uy + hw * vy),
-        (cx - hl * ux + hw * vx, cy - hl * uy + hw * vy),
-        (cx - hl * ux - hw * vx, cy - hl * uy - hw * vy),
-        (cx + hl * ux - hw * vx, cy + hl * uy - hw * vy),
-    ]
-
-
-def _clip_poly_rect(points: list[tuple[float, float]],
-                    hx: float, hy: float) -> list[tuple[float, float]]:
-    """Clip a polygon against the rect (-hx..hx, -hy..hy), Sutherland–Hodgman.
-
-    Analytic and renderer-independent: matplotlib 3.11 silently drops
-    ``set_clip_path`` with a Rectangle patch (verified: the clip ends up
-    None), so rib bars must be clipped by geometry, not by the renderer.
-    """
-    def isect_x(p, q, x):
-        t = (x - p[0]) / (q[0] - p[0])
-        return (x, p[1] + t * (q[1] - p[1]))
-
-    def isect_y(p, q, y):
-        t = (y - p[1]) / (q[1] - p[1])
-        return (p[0] + t * (q[0] - p[0]), y)
-
-    pts = points
-    for inside, isect in (
-        (lambda v: v[0] >= -hx, lambda p, q: isect_x(p, q, -hx)),
-        (lambda v: v[0] <= hx, lambda p, q: isect_x(p, q, hx)),
-        (lambda v: v[1] >= -hy, lambda p, q: isect_y(p, q, -hy)),
-        (lambda v: v[1] <= hy, lambda p, q: isect_y(p, q, hy)),
-    ):
-        out = []
-        n = len(pts)
-        for i in range(n):
-            cur, prev = pts[i], pts[i - 1]
-            c_in, p_in = inside(cur), inside(prev)
-            if c_in:
-                if not p_in:
-                    out.append(isect(prev, cur))
-                out.append(cur)
-            elif p_in:
-                out.append(isect(prev, cur))
-        pts = out
-        if not pts:
-            return []
-    return pts
-
-
-def _rib_bar_circular(cx: float, cy: float, r: float, hw: float,
-                      angle_deg: float, steps: int = 12) -> list[tuple[float, float]]:
-    """Rib bar as cut by the circular pocket wall: straight sides ending on
-    the wall, ends closed by the wall arc itself — the visible rib meets the
-    wall exactly, with no chord sliver gap (the model's box end cap is
-    buried in the wall material)."""
-    a = math.radians(angle_deg)
-    half = math.sqrt(max(r * r - hw * hw, 0.0))  # side lines cross the wall here
-    delta = math.atan2(hw, half)                 # angular half-width of the end
-    pts = []
-    for base in (a, a + math.pi):
-        for i in range(steps + 1):
-            t = base - delta + (2 * delta) * i / steps
-            pts.append((cx + r * math.cos(t), cy + r * math.sin(t)))
-    return pts
-
-
-def draw_x_fill(ax, pockets: list[dict], x_fill: dict | None) -> None:
-    """X-web fill in the top view: two diagonal rib bars (±45°, rib_width
-    wide) per pocket, shown exactly as the model cuts them: sides end on the
-    pocket wall (circle: ends follow the wall arc; slot: full model diagonal
-    clipped by the wall edges). The wall embed is hidden inside the wall."""
-    if not x_fill or x_fill.get("style", "web_floor") != "web_floor":
-        return
-    rib_w = x_fill.get("rib_width", 4)
-    if x_fill.get("under", "all") == "deep_only":
-        deepest = max(p["depth"] for p in pockets)
-        targets = [p for p in pockets if p["depth"] == deepest]
-    else:
-        targets = pockets
-    for p in targets:
-        cx = p["x_position"]
-        if p["shape"] == "circle":
-            r = p["diameter"] / 2
-            bars = [_rib_bar_circular(cx, 0, r, rib_w / 2, a) for a in (45, -45)]
-        else:
-            hx, hy = pocket_half_xy(p)
-            half = math.hypot(hx, hy)  # model rib length: the opening diagonal
-            bars = []
-            for a in (45, -45):
-                quad = _rib_bar(cx, 0, half, rib_w, a)
-                quad = _clip_poly_rect([(x - cx, y) for x, y in quad], hx, hy)
-                bars.append([(x + cx, y) for x, y in quad])
-        for quad in bars:
-            if len(quad) >= 3:
-                ax.add_patch(Polygon(quad, fill=False, lw=0.7,
-                                     edgecolor="black"))
-
-
 def fill_note(x_fill: dict | None) -> str | None:
     """One-line fill note for the top view, derived from the spec."""
     if not x_fill:
@@ -197,83 +106,315 @@ def fill_note(x_fill: dict | None) -> str | None:
     return f"FILL: see spec features.x_fill (style: {style}, under: {under})"
 
 
+def fill_targets(spec: dict) -> list[str]:
+    """Pocket ids the spec's x_fill applies to.
+
+    Mirrors the model rule exactly (models/<part>.build): under == "all", or
+    "deep_only" with little material left below the pocket floor. The old
+    schematic renderer used 'deepest pocket' here — a latent mismatch with
+    the model; the gate now has to match the model, not a guess.
+    """
+    xf = spec["features"].get("x_fill")
+    if not xf:
+        return []
+    leg_h = spec["dimensions"]["leg_height"]
+    top_z = spec["dimensions"]["height"] + leg_h
+    pockets = spec["features"]["pockets"]
+    if xf.get("under", "all") == "deep_only":
+        return [p["id"] for p in pockets if (top_z - p["depth"]) - leg_h <= 5]
+    return [p["id"] for p in pockets]
+
+
+def dimension_plan(spec: dict) -> list[dict]:
+    """The complete set of dimensions the drawing must carry.
+
+    Single source of truth for WHAT is dimensioned (view + tag + text); the
+    draw functions place these by tag, the manifest records them and the
+    completeness test checks the plan covers every spec dimension key.
+    """
+    dims, feats = spec["dimensions"], spec["features"]
+    xs = sorted({p["x_position"] for p in feats["pockets"]})
+    plan: list[dict] = []
+    if len(xs) > 1:
+        plan.append({"view": "top", "tag": "pitch", "text": f"{xs[1] - xs[0]:g}"})
+    plan += [
+        {"view": "top", "tag": "length", "text": f"{dims['length']:g}"},
+        {"view": "top", "tag": "width", "text": f"{dims['width']:g}"},
+        {"view": "front", "tag": "height", "text": f"{dims['height']:g}"},
+        {"view": "front", "tag": "length", "text": f"{dims['length']:g}"},
+        {"view": "end", "tag": "total_height",
+         "text": f"{dims['leg_height'] + dims['height']:g}"},
+        {"view": "end", "tag": "width", "text": f"{dims['width']:g}"},
+    ]
+    if "legs" in feats:
+        plan += [
+            {"view": "front", "tag": "leg_height", "text": f"{dims['leg_height']:g}"},
+            {"view": "front", "tag": "leg_diameter",
+             "text": f"Ø{dims['leg_diameter']:g}"},
+            {"view": "front", "tag": "leg_inset",
+             "text": f"{feats['legs']['inset']:g}"},
+        ]
+    return plan
+
+
+# ---------------------------------------------------------------- projection
+
+
+def load_builder(spec_path: Path):
+    """Resolve the part's model builder by convention: models/<part>.build."""
+    root = Path(__file__).resolve().parents[1]
+    if str(root) not in sys.path:  # CLI run: sys.path[0] is tools/, not root
+        sys.path.insert(0, str(root))
+    module = importlib.import_module(f"models.{spec_path.parent.name}")
+    return module.build
+
+
+def project_views(part, dims: dict) -> dict[str, tuple[list, list]]:
+    """Third-angle projections: top (from +Z), front (from −Y), end (from +X).
+
+    Returns ``{name: (visible_edges, hidden_edges)}``. Projected edges lie in
+    the viewport plane (Z = 0) with viewport X/Y on the model axes the
+    dimension code uses: top → (X, Y); front → (X, Z); end → (∓Y, Z).
+    """
+    d = max(dims["length"], dims["width"], dims["height"]) * 3 + 100
+    cameras = {
+        "top": ((0, 0, d), (0, 1, 0)),
+        "front": ((0, -d, 0), (0, 0, 1)),
+        "end": ((d, 0, 0), (0, 0, 1)),
+    }
+    return {
+        name: part.project_to_viewport(origin, up, look_at=(0, 0, 0))
+        for name, (origin, up) in cameras.items()
+    }
+
+
+def plot_edges(ax, edges, step: float = 1.0, max_points: int = 96, **style) -> int:
+    """Sample and plot projected edges; returns the number of edges drawn."""
+    for e in edges:
+        n = min(max_points, max(2, math.ceil(e.length / step) + 1))
+        pts = [(v.X, v.Y) for v in (e @ (i / (n - 1)) for i in range(n))]
+        xs, ys = zip(*pts)
+        ax.plot(xs, ys, **style)
+    return len(edges)
+
+
+# ---------------------------------------------------------------- probes
+
+
+def _union_bbox(edges):
+    boxes = [e.bounding_box() for e in edges]
+    if not boxes:
+        return None
+    return (
+        min(b.min.X for b in boxes), max(b.max.X for b in boxes),
+        min(b.min.Y for b in boxes), max(b.max.Y for b in boxes),
+    )
+
+
+def _edges_in(edges, x0, x1, y0, y1) -> list:
+    return [
+        e for e in edges
+        if (b := e.bounding_box()).min.X >= x0 and b.max.X <= x1
+        and b.min.Y >= y0 and b.max.Y <= y1
+    ]
+
+
+def _diag_line_count(edges, cx, hx, hy, angles=(45.0,)) -> int:
+    """Visible diagonal (rib) lines crossing the pocket centre in a view."""
+    n = 0
+    for e in edges:
+        if e.geom_type != GeomType.LINE:
+            continue
+        a, b = e @ 0, e @ 1
+        mx, my = (a.X + b.X) / 2, (a.Y + b.Y) / 2
+        if abs(mx - cx) <= hx and abs(my) <= hy:
+            ang = math.degrees(math.atan2(abs(b.Y - a.Y), abs(b.X - a.X)))
+            if any(abs(ang - t) < 6 for t in angles):
+                n += 1
+    return n
+
+
+def _leg_edges(vis, leg_axis: float, leg_h: float) -> int:
+    n = 0
+    for e in vis:
+        b = e.bounding_box()
+        if (b.min.Y >= -TOL and b.max.Y <= leg_h + TOL
+                and abs(abs((b.min.X + b.max.X) / 2) - leg_axis) < 2):
+            n += 1
+    return n
+
+
+def probe_views(views: dict, spec: dict) -> dict:
+    """Objective geometry probes of the projected views against the spec.
+
+    Reads the projected edges (not the matplotlib output), so the same probes
+    annotate the manifest and gate the drawing in the test suite.
+    """
+    dims, feats = spec["dimensions"], spec["features"]
+    pockets = feats["pockets"]
+    leg_h = dims["leg_height"]
+    top_z = dims["height"] + leg_h
+    vis_top, hid_top = views["top"]
+    vis_front, hid_front = views["front"]
+    vis_end, hid_end = views["end"]
+    probes: dict = {"pockets": {}, "x_fill": {}, "legs": {}, "outline": {}}
+
+    for p in pockets:
+        hx, hy = pocket_half_xy(p)
+        cx = p["x_position"]
+        opening = _edges_in(vis_top, cx - hx - TOL, cx + hx + TOL,
+                            -hy - TOL, hy + TOL)
+        bb = _union_bbox(opening)
+        ok = bool(
+            opening and bb
+            and abs((bb[0] + bb[1]) / 2 - cx) <= TOL
+            and abs((bb[1] - bb[0]) - 2 * hx) <= TOL
+            and abs((bb[3] - bb[2]) - 2 * hy) <= TOL
+        )
+        profile = _edges_in(hid_front, cx - hx - TOL, cx + hx + TOL,
+                            top_z - p["depth"] - TOL, top_z + TOL)
+        probes["pockets"][p["id"]] = {
+            "top_opening_edges": len(opening),
+            "top_opening_position_size_ok": ok,
+            "front_hidden_profile_edges": len(profile),
+        }
+
+    targets = set(fill_targets(spec))
+    for p in pockets:
+        hx, hy = pocket_half_xy(p)
+        probes["x_fill"][p["id"]] = {
+            "expected": p["id"] in targets,
+            "diag_edges_in_top": _diag_line_count(vis_top, p["x_position"], hx, hy),
+        }
+
+    probes["legs"] = {
+        "front_visible_edges": _leg_edges(
+            vis_front, dims["length"] / 2 - feats["legs"]["inset"], leg_h),
+        "end_visible_edges": _leg_edges(
+            vis_end, dims["width"] / 2 - feats["legs"]["inset"], leg_h),
+    }
+
+    for name, vis, want in (
+        ("top", vis_top, (dims["length"], dims["width"])),
+        ("front", vis_front, (dims["length"], top_z)),
+        ("end", vis_end, (dims["width"], top_z)),
+    ):
+        bb = _union_bbox(vis)
+        probes["outline"][name] = {
+            "span_x_ok": bool(bb) and abs((bb[1] - bb[0]) - want[0]) <= TOL,
+            "span_y_ok": bool(bb) and abs((bb[3] - bb[2]) - want[1]) <= TOL,
+        }
+    return probes
+
+
+def build_manifest(views: dict, probes: dict, spec: dict,
+                   spec_path: Path) -> dict:
+    """Manifest of the drawing: view edge counts, probes, annotation plan."""
+    return {
+        "part": spec["part"],
+        "spec": spec_path.name,
+        "generator": "tools/render_drawing.py",
+        "principle": ("views: projected from the model (build123d "
+                      "project_to_viewport, OCCT HLR); annotations: from the spec"),
+        "views": {
+            name: {"visible_edges": len(v[0]), "hidden_edges": len(v[1])}
+            for name, v in views.items()
+        },
+        "probes": probes,
+        "annotations": {
+            "dimensions": dimension_plan(spec),
+            "pocket_labels": [
+                {"id": p["id"], "text": pocket_label(p)}
+                for p in spec["features"]["pockets"]
+            ],
+            "schedule_rows": len(spec["features"]["pockets"]) + 1,
+            "fill_note": fill_note(spec["features"].get("x_fill")),
+        },
+    }
+
+
 # ---------------------------------------------------------------- views
 
 
-def draw_top(ax, dims: dict, pockets: list[dict],
-             x_fill: dict | None = None) -> None:
+def draw_top(ax, view, spec: dict) -> list[str]:
+    """Top view: projected edges + spec-driven labels, note and dimensions."""
+    vis, hid = view
+    plot_edges(ax, vis, **SOLID)
+    plot_edges(ax, hid, **HIDDEN)
+    dims, feats = spec["dimensions"], spec["features"]
+    pockets = feats["pockets"]
     L, W = dims["length"], dims["width"]
-    ax.add_patch(Rectangle((-L / 2, -W / 2), L, W, fill=False, lw=1.4,
-                           edgecolor="black"))
+    plan = {e["tag"]: e["text"] for e in dimension_plan(spec) if e["view"] == "top"}
+    drawn: list[str] = []
     for p in pockets:
-        cx, cy = p["x_position"], 0
-        hx, hy = pocket_half_xy(p)
-        if p["shape"] == "circle":
-            ax.add_patch(Circle((cx, cy), p["diameter"] / 2, fill=False,
-                                lw=0.9, edgecolor="black"))
-            ax.plot([cx], [cy], marker="+", color="black", ms=5, mew=0.7)
-        else:
-            ax.add_patch(Rectangle((cx - hx, cy - hy), 2 * hx, 2 * hy,
-                                   fill=False, lw=0.9, edgecolor="black"))
-            ax.plot([cx], [cy], marker="+", color="black", ms=5, mew=0.7)
-        leader(ax, (cx + hx * 0.7, cy + hy * 0.7),
-               (cx, W / 2 + 14), pocket_label(p))
-    draw_x_fill(ax, pockets, x_fill)
-    note = fill_note(x_fill)
+        cx, hx, hy = p["x_position"], *pocket_half_xy(p)
+        ax.plot([cx], [0], marker="+", color="black", ms=5, mew=0.7)
+        leader(ax, (cx + hx * 0.7, hy * 0.7), (cx, W / 2 + 14), pocket_label(p))
+    note = fill_note(feats.get("x_fill"))
     if note:
         ax.text(-L / 2 - 43, W / 2 + 26, note, fontsize=5.5,
                 family="monospace", color="#333333", va="top")
-    # X positions of pocket centers
     xs = sorted({p["x_position"] for p in pockets})
     y_dim = -W / 2 - 12
-    for a, b in zip(xs, xs[1:]):
-        dim_h(ax, a, b, y_dim, f"{b - a:g}", offset=2)
-    dim_h(ax, -L / 2, L / 2, y_dim - 12, f"{L:g}", offset=2)
-    dim_v(ax, -L / 2 - 14, -W / 2, W / 2, f"{W:g}")
+    if "pitch" in plan:
+        for a, b in zip(xs, xs[1:]):
+            dim_h(ax, a, b, y_dim, plan["pitch"], offset=2)
+        drawn.append("pitch")
+    dim_h(ax, -L / 2, L / 2, y_dim - 12, plan["length"], offset=2)
+    dim_v(ax, -L / 2 - 14, -W / 2, W / 2, plan["width"])
+    drawn += ["length", "width"]
     ax.set_xlim(-L / 2 - 45, L / 2 + 30)
     ax.set_ylim(-W / 2 - 40, W / 2 + 30)
     ax.set_aspect("equal")
     ax.set_title("TOP VIEW", fontsize=8, loc="left")
     ax.axis("off")
+    return drawn
 
 
-def draw_front(ax, dims: dict, legs: dict) -> None:
+def draw_front(ax, view, spec: dict) -> list[str]:
+    """Front view: projected edges (pockets appear as hidden lines)."""
+    vis, hid = view
+    plot_edges(ax, vis, **SOLID)
+    plot_edges(ax, hid, **HIDDEN)
+    dims, feats = spec["dimensions"], spec["features"]
+    legs = feats["legs"]
     L, H = dims["length"], dims["height"]
-    lh, ld, inset = legs["height"], dims["leg_diameter"], legs["inset"]
-    y0 = 0  # bottom of legs
-    ax.add_patch(Rectangle((-L / 2, lh), L, H, fill=False, lw=1.4,
-                           edgecolor="black"))
-    # legs (side silhouette): two visible cylinders at the corners
-    for cx in (-L / 2 + inset, L / 2 - inset):
-        ax.add_patch(Rectangle((cx - ld / 2, y0), ld, lh, fill=False, lw=0.9,
-                               edgecolor="black"))
-    dim_v(ax, -L / 2 - 14, lh, lh + H, f"{H:g}")
-    leader(ax, (-L / 2 + inset + ld / 2 + 4, lh / 2),
-           (-L / 2 + inset + 30, lh / 2 - 6), f"{lh:g}")
-    leader(ax, (-L / 2 + inset, lh), (-L / 2 + inset - 2, -8), f"{inset:g}")
-    dim_h(ax, -L / 2, L / 2, -24, f"{L:g}", offset=2)
+    lh, ld, inset = dims["leg_height"], dims["leg_diameter"], legs["inset"]
+    plan = {e["tag"]: e["text"] for e in dimension_plan(spec)
+            if e["view"] == "front"}
+    leg_x = -L / 2 + inset  # left leg centre
+    dim_v(ax, -L / 2 - 14, lh, lh + H, plan["height"])
+    leader(ax, (leg_x + ld / 2 + 4, lh / 2), (leg_x + 30, lh / 2 - 6),
+           plan["leg_height"])
+    leader(ax, (leg_x, lh), (leg_x - 2, -8), plan["leg_inset"])
+    leader(ax, (leg_x - ld / 2, lh / 2), (leg_x - 34, lh / 2 + 8),
+           plan["leg_diameter"])
+    dim_h(ax, -L / 2, L / 2, -24, plan["length"], offset=2)
     ax.set_xlim(-L / 2 - 45, L / 2 + 30)
     ax.set_ylim(-40, lh + H + 12)
     ax.set_aspect("equal")
     ax.set_title("FRONT VIEW", fontsize=8, loc="left")
     ax.axis("off")
+    return ["height", "leg_height", "leg_inset", "leg_diameter", "length"]
 
 
-def draw_end(ax, dims: dict, legs: dict) -> None:
+def draw_end(ax, view, spec: dict) -> list[str]:
+    """End view: projected edges + spec-driven dimensions."""
+    vis, hid = view
+    plot_edges(ax, vis, **SOLID)
+    plot_edges(ax, hid, **HIDDEN)
+    dims = spec["dimensions"]
     W, H = dims["width"], dims["height"]
-    lh, ld, inset = legs["height"], dims["leg_diameter"], legs["inset"]
-    ax.add_patch(Rectangle((-W / 2, lh), W, H, fill=False, lw=1.4,
-                           edgecolor="black"))
-    for cx in (-W / 2 + inset, W / 2 - inset):
-        ax.add_patch(Rectangle((cx - ld / 2, 0), ld, lh, fill=False, lw=0.9,
-                               edgecolor="black"))
-    dim_v(ax, W / 2 + 14, 0, lh + H, f"{lh + H:g}")
-    dim_h(ax, -W / 2, W / 2, lh + H + 8, f"{W:g}", offset=2)
+    lh = dims["leg_height"]
+    plan = {e["tag"]: e["text"] for e in dimension_plan(spec) if e["view"] == "end"}
+    dim_v(ax, W / 2 + 14, 0, lh + H, plan["total_height"])
+    dim_h(ax, -W / 2, W / 2, lh + H + 8, plan["width"], offset=2)
     ax.set_xlim(-W / 2 - 30, W / 2 + 30)
     ax.set_ylim(-12, lh + H + 22)
     ax.set_aspect("equal")
     ax.set_title("END VIEW", fontsize=8, loc="left")
     ax.axis("off")
+    return ["total_height", "width"]
 
 
 def draw_schedule(ax, pockets: list[dict], x0: float, y0: float) -> None:
@@ -299,7 +440,8 @@ def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
         f"PART: {part}",
         "UNITS: mm   PROJECTION: third angle",
         f"SOURCE: {spec_path.name} (authoritative)",
-        "DRAWING: generated from spec, not measured",
+        "VIEWS: projected from the model",
+        "DIMENSIONS: from the spec (intent)",
     ]
     for i, line in enumerate(lines):
         ax.text(x0, y0 - i * 6, line, fontsize=6.5, family="monospace")
@@ -310,39 +452,71 @@ def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
 
 def main() -> None:
     spec_path = Path(sys.argv[1])
-    out_prefix = Path(sys.argv[2]) if len(sys.argv) > 2 else spec_path.with_suffix("")
-    spec = yaml.safe_load(spec_path.read_text())
-    part = spec["part"]
+    out_prefix = (Path(sys.argv[2]) if len(sys.argv) > 2
+                  else spec_path.parent / "visuals" / "drawing")
+    spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
+    part = load_builder(spec_path)(spec)
     dims = spec["dimensions"]
-    feats = spec["features"]
-    pockets = feats["pockets"]
-    legs = feats["legs"]
+
+    views = project_views(part, dims)
+    probes = probe_views(views, spec)
 
     fig = plt.figure(figsize=(11.69, 8.27), dpi=150)  # A4 landscape
-    fig.suptitle(f"{part} — dimensioned drawing (from spec)",
-                 fontsize=10, fontweight="bold")
-
-    # top view occupies the upper-left area, front below, end right of front
+    fig.suptitle(
+        f"{spec['part']} — dimensioned drawing "
+        "(views: projected from model, dimensions: from spec)",
+        fontsize=10, fontweight="bold",
+    )
     ax_top = fig.add_axes([0.05, 0.55, 0.60, 0.38])
     ax_front = fig.add_axes([0.05, 0.12, 0.60, 0.32])
     ax_end = fig.add_axes([0.70, 0.12, 0.22, 0.32])
     ax_info = fig.add_axes([0.70, 0.50, 0.25, 0.43])
 
-    draw_top(ax_top, dims, pockets, feats.get("x_fill"))
-    draw_front(ax_front, dims, legs)
-    draw_end(ax_end, dims, legs)
+    drawn = {
+        "top": draw_top(ax_top, views["top"], spec),
+        "front": draw_front(ax_front, views["front"], spec),
+        "end": draw_end(ax_end, views["end"], spec),
+    }
+    # the draw functions must realise the full dimension plan — fail loud
+    for view, tags in drawn.items():
+        want = {e["tag"] for e in dimension_plan(spec) if e["view"] == view}
+        if set(tags) != want:
+            raise RuntimeError(
+                f"dimension plan drift in {view}: drawn={sorted(tags)} "
+                f"plan={sorted(want)}")
 
     ax_info.axis("off")
     ax_info.set_xlim(-2, 92)
     ax_info.set_ylim(-58, 4)
-    draw_schedule(ax_info, pockets, 0.0, 0.0)
-    draw_title_block(ax_info, part, spec_path, 0.0, -46)
+    draw_schedule(ax_info, spec["features"]["pockets"], 0.0, 0.0)
+    draw_title_block(ax_info, spec["part"], spec_path, 0.0, -46)
+
+    manifest = build_manifest(views, probes, spec, spec_path)
+    manifest["annotations"]["drawn_tags"] = drawn
+
+    failed = [
+        f"{pid}: opening" for pid, pr in probes["pockets"].items()
+        if not pr["top_opening_position_size_ok"]
+    ] + [
+        f"{pid}: ribs" for pid, pr in probes["x_fill"].items()
+        if pr["expected"] and pr["diag_edges_in_top"] < 2
+    ] + [
+        f"outline:{name}" for name, pr in probes["outline"].items()
+        if not (pr["span_x_ok"] and pr["span_y_ok"])
+    ]
+    for warning in failed:
+        print(f"PROBE FAILED: {warning}", file=sys.stderr)
 
     out_prefix.parent.mkdir(parents=True, exist_ok=True)
     for ext in ("png", "svg"):
         out = out_prefix.with_name(f"{out_prefix.name}.{ext}")
         fig.savefig(out, bbox_inches="tight")
         print(f"rendered {out}")
+    manifest_out = out_prefix.with_name(f"{out_prefix.name}.manifest.json")
+    manifest_out.write_text(
+        json.dumps(manifest, indent=2, ensure_ascii=False) + "\n",
+        encoding="utf-8")
+    print(f"rendered {manifest_out}")
 
 
 if __name__ == "__main__":

@@ -3,9 +3,9 @@
 Headless parametric CAD workspace: models are built from written specs, verified by automated tests, and reviewed through generated previews. Built on [build123d](https://github.com/gumyr/build123d) (Python + OpenCascade), designed for AI-assisted modeling where the machine — not memory — proves correctness.
 
 ![Brush organizer — Blender render](specs/brush_organizer/visuals/render_iso.png)
-![Brush organizer — dimensioned drawing generated from spec.yaml](specs/brush_organizer/visuals/drawing.png)
+![Brush organizer — dimensioned drawing (views projected from the model, dimensions from spec.yaml)](specs/brush_organizer/visuals/drawing.png)
 
-*Left: presentation render (headless Blender Cycles from the verified STL). Right: dimensioned drawing generated directly from `spec.yaml`. More views: [`visuals/`](specs/brush_organizer/visuals/).*
+*Left: presentation render (headless Blender Cycles from the verified STL). Right: dimensioned drawing — views projected from the model, dimensions from `spec.yaml`. More views: [`visuals/`](specs/brush_organizer/visuals/).*
 
 ## Why code-first, headless
 
@@ -16,12 +16,12 @@ Headless parametric CAD workspace: models are built from written specs, verified
 ## The core loop
 
 ```text
-spec (approved dimensions) → drawing (from spec) → model (build123d) → tests (pytest) → previews (PNG) → human review
+spec (approved dimensions) → model (build123d) → drawing (views projected from the model, dimensions from spec) → tests (pytest) → previews (PNG) → human review
 ```
 
 1. A drawing or sketch is transcribed into a machine-readable `spec.yaml` and **approved by a human** before any modeling starts. The spec's structure is validated against a JSON Schema contract (`tools/validate_spec.py`, also a CI step) before any model reads it.
-2. A dimensioned drawing is generated **from the approved spec** and compared against the original sketch — a veto-friendly visualization of the interpretation, the cheapest place to catch a misread.
-3. The model script reads parameters from the spec — never from memory or hard-coded magic numbers.
+2. The model script reads parameters from the spec — never from memory or hard-coded magic numbers.
+3. A dimensioned drawing is generated from the built model: its views are true projections (`project_to_viewport`, OCCT hidden-line removal — a feature cannot go missing from a projected view), while dimensions, labels and the schedule come from the approved spec. Completeness probes gate the drawing against the spec in CI.
 4. Tests assert every dimension in the spec against the measured geometry, and a completeness check ensures no dimension is silently untested.
 5. Headless previews are rendered for visual review; a verification report compares drawing dimensions to measured values.
 6. Changes are reviewed as diffs and merged only after CI and human approval.
@@ -68,11 +68,13 @@ The verification loop is proven end-to-end on two parts:
   target for the whole workflow.
 - **brush_organizer** — first real part (M3): 6 pockets with X-rib floors on
   corner legs, transcribed from a hand sketch, corrected in three rounds,
-  20/20 tests passing, exported (STL/STEP) and **accepted by the owner on
-  2026-10-20**. Presentation renders (`specs/brush_organizer/visuals/`) were
-  produced with a headless Blender Cycles pipeline from the verified STL
+  28/28 tests passing (incl. the drawing-completeness gate), exported
+  (STL/STEP) and **accepted by the owner on 2026-10-20**. Presentation
+  renders (`specs/brush_organizer/visuals/`) were produced with a headless
+  Blender Cycles pipeline from the verified STL
   ([tools/render_blender.py](tools/render_blender.py)), and a dimensioned
-  drawing is generated directly from `spec.yaml`
+  drawing is generated with views projected from the model and dimensions
+  from `spec.yaml`
   ([tools/render_drawing.py](tools/render_drawing.py)).
   External FDM printing is planned but not yet done.
 

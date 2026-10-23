@@ -112,7 +112,36 @@ over the rendered polygons: circle ends follow the wall arc exactly (side
 lines cross the wall at `sqrt(r²−(w/2)²)`, the end is sampled along the
 arc); slot bars use the model's full diagonal length clipped to the
 opening. The drawing now matches the model's visible rib — no gap, no
-overshoot.
+overshoot. (Structurally superseded the next day by lesson 10: the drawing
+now projects its views from the model, removing the duplicated rib logic
+these manual fixes reconciled.)
+
+## 10. Don't implement geometry twice — project the views from the model
+
+Lesson 9's three correction rounds shared one root cause: the schematic
+renderer re-implemented the model's rib geometry by hand (bar polygons,
+analytic clipping, arc-following ends), so every rib detail existed twice —
+in the model and in the drawing code — and each round reconciled one
+divergence between the two. Structural fix (2026-10-23):
+
+- **View geometry from the model**: `tools/render_drawing.py` builds the part
+  from the spec and projects top/front/end views with build123d
+  `project_to_viewport` (OCCT hidden-line removal) — visible edges solid,
+  hidden edges dotted. A feature cannot be missing or misdrawn: the view is
+  derived from the verified geometry, and the duplicated clip logic was
+  deleted.
+- **Annotations from the spec**: dimensions, labels, schedule and title block
+  stay spec-driven (`dimension_plan` is the single source of what is
+  dimensioned; the renderer fails loudly if the drawn tags drift from the
+  plan).
+- **The review rule of lesson 9 is now a test**:
+  `tests/test_drawing_completeness.py` re-builds the part, re-projects the
+  views and probes them against the spec (pocket openings at position/size,
+  rib edges where the fill requires them, hidden profiles in the front view,
+  legs, view envelopes) and checks the drawing manifest.
+- Bonus: hidden lines now document internal features (pocket profiles, ribs)
+  that the schematic never showed, and building the gate surfaced a real gap
+  — the leg diameter had never been dimensioned; it is now.
 
 ## Meta-lesson: correction rounds are cheap when the spec is the truth
 
