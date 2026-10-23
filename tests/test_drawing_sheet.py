@@ -19,6 +19,8 @@ from tools.render_drawing import (
     closed_dash_offset,
     probe_views,
     project_views,
+    small_circle_solid,
+    text_clearance_violations,
 )
 
 REPO = Path(__file__).resolve().parents[1]
@@ -93,3 +95,19 @@ def test_closed_dash_offset_shifts_phase_by_half_period_for_half_period_circumfe
     length_pts = 7.5 / (0.5 * 72 / 25.4)  # mm that render as 7.5 pt
     off = closed_dash_offset(FakeEdge(length_pts), (0, (12, 3)))
     assert off == pytest.approx(6.0, abs=1e-9)
+
+
+def test_small_hidden_circles_solid_rule():
+    """Ø5 legs (15.708 mm → 22.3 pt < 45 pt) go solid; Ø35 stays dashed."""
+    assert small_circle_solid(15.708, (0, (12, 3))) is True
+    assert small_circle_solid(109.956, (0, (12, 3))) is False
+    assert small_circle_solid(15.708, None) is False
+
+
+def test_regenerated_manifest_records_text_clearance_pass():
+    """The versioned manifest must carry the mechanical layout gate result."""
+    import json
+    m = json.loads((REPO / "specs" / "brush_organizer" / "visuals"
+                    / "drawing.manifest.json").read_text(encoding="utf-8"))
+    assert m["sheet"]["text_clearance_ok"] is True, (
+        "text/frame clearance probe failed — layout must be fixed, not asserted")

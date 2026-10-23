@@ -68,6 +68,7 @@ if FONT_PATH.exists():
     font_manager.fontManager.addfont(str(FONT_PATH))
     FONT_NAME = font_manager.FontProperties(fname=str(FONT_PATH)).get_name()
 matplotlib.rcParams["font.family"] = FONT_NAME
+matplotlib.rcParams["axes.unicode_minus"] = False  # osifont lacks U+2212; ASCII hyphen (tick labels are hidden anyway, but tight-bbox extents still resolve them)
 
 
 def apply_scale(fig, ax, rect, scale: float = SCALE) -> None:
@@ -257,6 +258,19 @@ def project_views(part, dims: dict) -> dict[str, tuple[list, list]]:
     }
 
 
+def small_circle_solid(length_mm: float, linestyle) -> bool:
+    """Hidden circles too small for a legible dash pattern are drawn solid.
+
+    A closed circle with a circumference under 3 dash periods cannot carry
+    the 12d/3d pattern legibly (the seam dominates — the 'C' artifact on the
+    Ø5 legs); practice (ASME Y14.2) substitutes a continuous narrow line.
+    Declared as a convention in the manifest.
+    """
+    if not isinstance(linestyle, tuple) or len(linestyle) != 2 or not linestyle[1]:
+        return False
+    return length_mm * SCALE * 72 / 25.4 < 3 * sum(linestyle[1])
+
+
 def closed_dash_offset(edge, linestyle) -> float | None:
     """Phase shift putting the seam of a closed circular edge mid-gap.
 
@@ -282,9 +296,13 @@ def plot_edges(ax, edges, step: float = 1.0, max_points: int = 96, **style) -> i
     for e in edges:
         st = style
         if e.geom_type == GeomType.CIRCLE and e.is_closed:
-            off = closed_dash_offset(e, style.get("linestyle"))
-            if off is not None:
-                st = dict(style, linestyle=(off, style["linestyle"][1]))
+            ls = style.get("linestyle")
+            if small_circle_solid(e.length, ls):
+                st = {k: v for k, v in style.items() if k != "linestyle"}
+            else:
+                off = closed_dash_offset(e, ls)
+                if off is not None:
+                    st = dict(style, linestyle=(off, ls[1]))
         n = min(max_points, max(2, math.ceil(e.length / step) + 1))
         pts = [(v.X, v.Y) for v in (e @ (i / (n - 1)) for i in range(n))]
         xs, ys = zip(*pts)
@@ -420,6 +438,10 @@ def build_manifest(views: dict, probes: dict, spec: dict,
             "size": "A4 landscape, 297×210 mm (ISO 5457)",
             "frame": "10 mm margin (convention — full ISO 5457 text not in repo)",
             "centring_marks": "centring marks: 4 × 10 mm strokes at the side midpoints",
+            "small_circles": (
+                "hidden circles with circumference < 3 dash periods drawn "
+                "solid narrow (legibility convention)"),
+            "text_clearance": "every text ≥2 mm inside the frame (mechanical gate)",
         },
         "line_styles": {
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
@@ -612,6 +634,33 @@ def draw_sheet_frame(fig) -> None:
     ax.plot([277, 287], [cy, cy], **DIMLINE)
 
 
+def text_clearance_violations(fig) -> list[str]:
+    """Every text must stay ≥2 mm inside the ISO 5457 frame.
+
+    Mechanical layout gate: converts each text's window extent to paper mm
+    and checks it against the frame lines (10/287 × 10/200) minus a 2 mm
+    clearance. Catches the text/line collision class ('letters running into
+    the frame or centring marks') that geometry probes cannot see.
+    """
+    renderer = fig.canvas.get_renderer()
+    px_mm = 25.4 / fig.dpi
+    violations = []
+    texts = list(fig.texts)
+    for ax in fig.axes:
+        texts.extend(ax.texts)
+        if ax.title.get_text():
+            texts.append(ax.title)
+    for t in texts:
+        bb = t.get_window_extent(renderer=renderer)
+        x0, x1 = bb.x0 * px_mm, bb.x1 * px_mm
+        y0, y1 = bb.y0 * px_mm, bb.y1 * px_mm
+        if x0 < 12 or x1 > 285 or y0 < 12 or y1 > 198:
+            violations.append(
+                f"text '{t.get_text()[:40]}' bbox mm "
+                f"({x0:.1f},{y0:.1f})..({x1:.1f},{y1:.1f}) breaks frame clearance")
+    return violations
+
+
 # ---------------------------------------------------------------- main
 
 
@@ -628,15 +677,13 @@ def main() -> None:
 
     fig = plt.figure(figsize=(11.69, 8.27), dpi=150)  # A4 landscape
     draw_sheet_frame(fig)
-    fig.suptitle(
-        f"{spec['part']} — dimensioned drawing "
-        "(views: projected from model, dimensions: from spec)",
-        fontsize=12, fontweight="bold", y=0.935,
-    )
-    ax_top = fig.add_axes([0.05, 0.55, 0.60, 0.38])
+    # No suptitle: an ISO drawing carries the title in the title block, not
+    # as a heading over the sheet — the previous suptitle collided with the
+    # top centring mark and the frame (removed 2026-10-23).
+    ax_top = fig.add_axes([0.05, 0.52, 0.60, 0.35])
     ax_front = fig.add_axes([0.05, 0.12, 0.60, 0.32])
     ax_end = fig.add_axes([0.70, 0.12, 0.22, 0.32])
-    ax_info = fig.add_axes([0.70, 0.50, 0.25, 0.43])
+    ax_info = fig.add_axes([0.70, 0.47, 0.25, 0.40])
 
     drawn = {
         "top": draw_top(ax_top, views["top"], spec),
@@ -653,18 +700,23 @@ def main() -> None:
 
     # ISO 5455: every view at the declared 1:2 scale — data range from the
     # axes paper size, centred on the content midpoints the draw functions set
-    apply_scale(fig, ax_top, (0.05, 0.55, 0.60, 0.38))
+    apply_scale(fig, ax_top, (0.05, 0.52, 0.60, 0.35))
     apply_scale(fig, ax_front, (0.05, 0.12, 0.60, 0.32))
     apply_scale(fig, ax_end, (0.70, 0.12, 0.22, 0.32))
 
     ax_info.axis("off")
     ax_info.set_xlim(-2, 92)
-    ax_info.set_ylim(-64, 4)  # title block: 2 rows x 8 from y=-46 -> bottom -62
+    ax_info.set_ylim(-64, 10)  # schedule title (y=7.2) stays inside the axes
     draw_schedule(ax_info, spec["features"]["pockets"], 0.0, 0.0)
     draw_title_block(ax_info, spec["part"], spec_path, 0.0, -46)
 
     manifest = build_manifest(views, probes, spec, spec_path)
     manifest["annotations"]["drawn_tags"] = drawn
+
+    violations = text_clearance_violations(fig)
+    for v in violations:
+        print(f"PROBE FAILED: {v}", file=sys.stderr)
+    manifest["sheet"]["text_clearance_ok"] = not violations
 
     failed = [
         f"{pid}: opening" for pid, pr in probes["pockets"].items()
