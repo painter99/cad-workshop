@@ -36,6 +36,11 @@ The workshop runs a closed loop. Nothing is "done" because it was written confid
   projected geometry, after the model builds. The pre-model veto point is the
   spec review above; the drawing review remains the cheap place to catch a
   misread before previews and acceptance.
+- Line styles follow ISO 128-24: visible edges continuous **wide**, hidden
+  edges **dashed narrow** (type 02.1 — never dotted), centre lines
+  long-dashed dotted narrow (type 04.1), dimension/extension/leader lines
+  continuous narrow (type 01.1); two widths at a 1:2 ratio (≈0.7/0.35 mm),
+  dash lengths per ISO 128-20 (12d/3d dashed, 24d long-dash).
 - When the sketch is private, this drawing is also the public, dimension-bearing
   artifact of the part (see [04-verification-workflow.md](04-verification-workflow.md)).
 

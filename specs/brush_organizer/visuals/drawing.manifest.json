@@ -3,6 +3,12 @@
   "spec": "spec.yaml",
   "generator": "tools/render_drawing.py",
   "principle": "views: projected from the model (build123d project_to_viewport, OCCT HLR); annotations: from the spec",
+  "line_styles": {
+    "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
+    "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
+    "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow",
+    "dimensions": "ISO 128-24 type 01.1, continuous narrow"
+  },
   "views": {
     "top": {
       "visible_edges": 64,
