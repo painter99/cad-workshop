@@ -17,10 +17,10 @@ from tools.render_drawing import (
     FONT_PATH,
     build_manifest,
     closed_dash_offset,
+    frame_collision_violations,
     probe_views,
     project_views,
     small_circle_solid,
-    text_clearance_violations,
 )
 
 REPO = Path(__file__).resolve().parents[1]
@@ -69,7 +69,7 @@ def test_manifest_declares_font_and_sheet(manifest):
     assert "font exception" in manifest["font"]["license"]
     assert "A4 landscape" in manifest["sheet"]["size"]
     assert "10 mm" in manifest["sheet"]["frame"]
-    assert "centring" in manifest["sheet"]["centring_marks"]
+    assert "omitted" in manifest["sheet"]["centring_marks"]
 
 
 def test_closed_dash_offset_deterministic():
@@ -104,10 +104,31 @@ def test_small_hidden_circles_solid_rule():
     assert small_circle_solid(15.708, None) is False
 
 
-def test_regenerated_manifest_records_text_clearance_pass():
+def test_regenerated_manifest_records_frame_clearance_pass():
     """The versioned manifest must carry the mechanical layout gate result."""
     import json
     m = json.loads((REPO / "specs" / "brush_organizer" / "visuals"
                     / "drawing.manifest.json").read_text(encoding="utf-8"))
-    assert m["sheet"]["text_clearance_ok"] is True, (
-        "text/frame clearance probe failed — layout must be fixed, not asserted")
+    assert m["sheet"]["frame_clearance_ok"] is True, (
+        "frame collision probe failed — layout must be fixed, not asserted")
+    assert "omitted" in m["sheet"]["centring_marks"], (
+        "centring marks are optional per ISO 5457 and were removed as a "
+        "collision surface — they must not quietly return")
+
+
+def test_frame_collision_violations_catches_lines_and_patches():
+    """The gate covers every drawn element, not only texts (owner found a
+    patch/symbol colliding with sheet furniture that the text-only gate
+    missed)."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    fig = plt.figure(figsize=(11.69, 8.27), dpi=150)
+    frame_ax = fig.add_axes([0, 0, 1, 1])
+    frame_ax.set_xlim(0, 297)
+    frame_ax.set_ylim(0, 210)
+    ax = fig.add_axes([0.1, 0.1, 0.5, 0.5])
+    ax.plot([0, 1], [0.98, 0.98])  # line crossing the top frame area
+    ax.add_patch(plt.Rectangle((0.5, 0.97), 0.1, 0.05, fill=False))  # patch
+    viol = frame_collision_violations(fig, frame_ax)
+    assert len(viol) >= 2, f"gate must catch line+patch collisions, got {viol}"

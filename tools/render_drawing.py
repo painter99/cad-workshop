@@ -437,11 +437,11 @@ def build_manifest(views: dict, probes: dict, spec: dict,
         "sheet": {
             "size": "A4 landscape, 297×210 mm (ISO 5457)",
             "frame": "10 mm margin (convention — full ISO 5457 text not in repo)",
-            "centring_marks": "centring marks: 4 × 10 mm strokes at the side midpoints",
+            "centring_marks": "omitted — optional per ISO 5457; a generated PDF is not a preprinted trimmed sheet",
             "small_circles": (
                 "hidden circles with circumference < 3 dash periods drawn "
                 "solid narrow (legibility convention)"),
-            "text_clearance": "every text ≥2 mm inside the frame (mechanical gate)",
+            "frame_clearance": "every drawn element ≥2 mm inside the frame (mechanical gate)",
         },
         "line_styles": {
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
@@ -613,13 +613,12 @@ def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
 # ---------------------------------------------------------------- sheet
 
 
-def draw_sheet_frame(fig) -> None:
-    """ISO 5457 sheet furniture: frame with a 10 mm margin and centring
-    marks (10 mm strokes at the midpoints of the four sides).
+def draw_sheet_frame(fig):
+    """ISO 5457 sheet furniture: frame with a 10 mm margin.
 
-    Convention note: the full ISO 5457 text is not in the repo — the 10 mm
-    margin and inner centring marks are declared as conventions in the
-    manifest, same as the line styles.
+    Centring marks are OMITTED: they are optional per ISO 5457 (the sheet is
+    a generated PDF, not a preprinted trimmed sheet) and their collision
+    surface cost the owner two review rounds. Declared in the manifest.
     """
     ax = fig.add_axes([0, 0, 1, 1])
     ax.axis("off")
@@ -627,36 +626,55 @@ def draw_sheet_frame(fig) -> None:
     ax.set_ylim(0, 210)
     ax.add_patch(Rectangle((10, 10), 277, 190, fill=False, lw=1.0,
                            edgecolor="black"))
-    cx, cy = 297 / 2, 210 / 2
-    ax.plot([cx, cx], [10, 20], **DIMLINE)
-    ax.plot([cx, cx], [190, 200], **DIMLINE)
-    ax.plot([10, 20], [cy, cy], **DIMLINE)
-    ax.plot([277, 287], [cy, cy], **DIMLINE)
+    return ax
 
 
-def text_clearance_violations(fig) -> list[str]:
-    """Every text must stay ≥2 mm inside the ISO 5457 frame.
+def frame_collision_violations(fig, frame_ax) -> list[str]:
+    """Nothing may touch the ISO 5457 frame (10/287 × 10/200, 2 mm clearance).
 
-    Mechanical layout gate: converts each text's window extent to paper mm
-    and checks it against the frame lines (10/287 × 10/200) minus a 2 mm
-    clearance. Catches the text/line collision class ('letters running into
-    the frame or centring marks') that geometry probes cannot see.
+    Mechanical layout gate over EVERY drawn element — texts, lines, patches
+    and annotation arrows (the frame axes itself excluded) — converted to
+    paper mm and checked against the frame lines minus a 2 mm clearance.
+    Catches the 'element running into the frame' defect class (texts, the
+    projection symbol, anything) that geometry probes cannot see.
     """
+    from matplotlib.lines import Line2D
+    from matplotlib.patches import Patch
+    from matplotlib.spines import Spine
+    from matplotlib.text import Text
     renderer = fig.canvas.get_renderer()
     px_mm = 25.4 / fig.dpi
-    violations = []
-    texts = list(fig.texts)
+    # Axes/figure background patches are not content — excluded.
+    background = {fig.patch} | {ax.patch for ax in fig.axes}
+    # Tick labels of axis-off axes are never drawn (only their extents are
+    # resolved during the tight-bbox pass) — excluded from the gate.
+    skip = set()
     for ax in fig.axes:
-        texts.extend(ax.texts)
-        if ax.title.get_text():
-            texts.append(ax.title)
-    for t in texts:
-        bb = t.get_window_extent(renderer=renderer)
+        if ax is frame_ax or not ax.axison:
+            for axis in (ax.xaxis, ax.yaxis):
+                for tick in axis.get_major_ticks() + axis.get_minor_ticks():
+                    skip.update((tick.label1, tick.label2,
+                                 tick.tick1line, tick.tick2line, tick.gridline))
+    violations = []
+    for obj in fig.findobj(match=lambda o: isinstance(o, (Text, Line2D, Patch))
+                           and not isinstance(o, Spine)):
+        if (getattr(obj, "axes", None) is frame_ax or obj in skip
+                or obj in background or not obj.get_visible()):
+            continue
+        if isinstance(obj, Text) and not (obj.get_text() or "").strip():
+            continue
+        try:
+            bb = obj.get_window_extent(renderer=renderer)
+        except Exception:
+            continue
+        if bb.width <= 0 and bb.height <= 0:
+            continue
         x0, x1 = bb.x0 * px_mm, bb.x1 * px_mm
         y0, y1 = bb.y0 * px_mm, bb.y1 * px_mm
         if x0 < 12 or x1 > 285 or y0 < 12 or y1 > 198:
+            label = obj.get_text()[:40] if isinstance(obj, Text) else type(obj).__name__
             violations.append(
-                f"text '{t.get_text()[:40]}' bbox mm "
+                f"{type(obj).__name__} '{label}' bbox mm "
                 f"({x0:.1f},{y0:.1f})..({x1:.1f},{y1:.1f}) breaks frame clearance")
     return violations
 
@@ -676,10 +694,12 @@ def main() -> None:
     probes = probe_views(views, spec)
 
     fig = plt.figure(figsize=(11.69, 8.27), dpi=150)  # A4 landscape
-    draw_sheet_frame(fig)
-    # No suptitle: an ISO drawing carries the title in the title block, not
-    # as a heading over the sheet — the previous suptitle collided with the
-    # top centring mark and the frame (removed 2026-10-23).
+    frame_ax = draw_sheet_frame(fig)
+    fig.suptitle(
+        f"{spec['part']} — dimensioned drawing "
+        "(views: projected from model, dimensions: from spec)",
+        fontsize=12, fontweight="bold", y=0.92,
+    )
     ax_top = fig.add_axes([0.05, 0.52, 0.60, 0.35])
     ax_front = fig.add_axes([0.05, 0.12, 0.60, 0.32])
     ax_end = fig.add_axes([0.70, 0.12, 0.22, 0.32])
@@ -713,10 +733,10 @@ def main() -> None:
     manifest = build_manifest(views, probes, spec, spec_path)
     manifest["annotations"]["drawn_tags"] = drawn
 
-    violations = text_clearance_violations(fig)
+    violations = frame_collision_violations(fig, frame_ax)
     for v in violations:
         print(f"PROBE FAILED: {v}", file=sys.stderr)
-    manifest["sheet"]["text_clearance_ok"] = not violations
+    manifest["sheet"]["frame_clearance_ok"] = not violations
 
     failed = [
         f"{pid}: opening" for pid, pr in probes["pockets"].items()
