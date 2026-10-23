@@ -42,8 +42,16 @@ from build123d import GeomType
 
 TOL = 0.05  # mm — probe tolerance
 
-SOLID = dict(color="black", lw=0.9)
-HIDDEN = dict(color="#555555", lw=0.6, linestyle=(0, (1, 2)))
+# ISO 128-24 line groups (two widths, 1:2): wide ≈ 0.7 mm, narrow ≈ 0.35 mm
+# on paper (2.0 / 1.0 pt). Dash lengths per ISO 128-20 table 3, in units of
+# the line width d: hidden = dashed 12d/3d (type 02.1), centre lines =
+# long-dash dot 24d/3d (type 04.1). Dotted lines are NOT used for hidden
+# edges (that was the pre-ISO style, corrected 2026-10-23).
+SOLID = dict(color="black", lw=2.0)          # 01.2 continuous wide
+HIDDEN = dict(color="black", lw=1.0,
+              linestyle=(0, (12, 3)))        # 02.1 dashed narrow
+CENTERLINE = dict(color="black", lw=1.0,
+                  linestyle=(0, (24, 3, 1, 3)))  # 04.1 long-dashed dotted narrow
 
 
 # ---------------------------------------------------------------- helpers
@@ -54,7 +62,7 @@ def dim_h(ax, x0, x1, y, text, offset=6, color="#1a1a1a"):
     ax.annotate(
         "", xy=(x0, y), xytext=(x1, y),
         arrowprops=dict(arrowstyle="<|-|>", color=color, shrinkA=0, shrinkB=0,
-                        mutation_scale=10),
+                        mutation_scale=10, lw=1.0),
     )
     ax.text((x0 + x1) / 2, y + offset, text, ha="center", va="bottom",
             fontsize=7, color=color)
@@ -65,7 +73,7 @@ def dim_v(ax, x, y0, y1, text, offset=6, color="#1a1a1a"):
     ax.annotate(
         "", xy=(x, y0), xytext=(x, y1),
         arrowprops=dict(arrowstyle="<|-|>", color=color, shrinkA=0, shrinkB=0,
-                        mutation_scale=10),
+                        mutation_scale=10, lw=1.0),
     )
     ax.text(x + offset, (y0 + y1) / 2, text, ha="left", va="center",
             fontsize=7, rotation=90, color=color)
@@ -74,7 +82,7 @@ def dim_v(ax, x, y0, y1, text, offset=6, color="#1a1a1a"):
 def leader(ax, xy, xytext, text, color="#1a1a1a"):
     ax.annotate(
         text, xy=xy, xytext=xytext, fontsize=6.5, color=color,
-        arrowprops=dict(arrowstyle="->", color=color, lw=0.6),
+        arrowprops=dict(arrowstyle="->", color=color, lw=1.0),
         ha="center", va="center",
     )
 
@@ -316,6 +324,12 @@ def build_manifest(views: dict, probes: dict, spec: dict,
         "generator": "tools/render_drawing.py",
         "principle": ("views: projected from the model (build123d "
                       "project_to_viewport, OCCT HLR); annotations: from the spec"),
+        "line_styles": {
+            "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
+            "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
+            "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow",
+            "dimensions": "ISO 128-24 type 01.1, continuous narrow",
+        },
         "views": {
             name: {"visible_edges": len(v[0]), "hidden_edges": len(v[1])}
             for name, v in views.items()
@@ -348,7 +362,10 @@ def draw_top(ax, view, spec: dict) -> list[str]:
     drawn: list[str] = []
     for p in pockets:
         cx, hx, hy = p["x_position"], *pocket_half_xy(p)
-        ax.plot([cx], [0], marker="+", color="black", ms=5, mew=0.7)
+        # ISO 128-24 type 04.1 centre lines: dash-dot cross through the
+        # centre, extending ~4 mm beyond the opening
+        ax.plot([cx - hx - 4, cx + hx + 4], [0, 0], **CENTERLINE)
+        ax.plot([cx, cx], [-hy - 4, hy + 4], **CENTERLINE)
         leader(ax, (cx + hx * 0.7, hy * 0.7), (cx, W / 2 + 14), pocket_label(p))
     note = fill_note(feats.get("x_fill"))
     if note:
