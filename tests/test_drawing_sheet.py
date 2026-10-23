@@ -15,8 +15,10 @@ from models.brush_organizer import build, load_spec
 from tools.render_drawing import (
     FONT_NAME,
     FONT_PATH,
+    _snap_data,
     build_manifest,
     closed_dash_offset,
+    draw_title_block,
     frame_collision_violations,
     probe_views,
     project_views,
@@ -132,3 +134,73 @@ def test_frame_collision_violations_catches_lines_and_patches():
     ax.add_patch(plt.Rectangle((0.5, 0.97), 0.1, 0.05, fill=False))  # patch
     viol = frame_collision_violations(fig, frame_ax)
     assert len(viol) >= 2, f"gate must catch line+patch collisions, got {viol}"
+
+
+def test_snap_data_lands_on_pixel_grid():
+    """_snap_data must return coordinates that matplotlib maps back to whole
+    render pixels — half-pixel positions are what rendered the title block's
+    right frame edge 1 px thin while its neighbours rendered 2 px."""
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure(figsize=(11.69, 8.27), dpi=150)
+    ax = fig.add_axes([0.70, 0.47, 0.25, 0.40])
+    ax.set_xlim(-2, 93)
+    ax.set_ylim(-64, 10)
+    for value, axis in [(0.0, "x"), (40.0, "x"), (66.0, "x"), (92.0, "x"),
+                        (-46.0, "y"), (-54.0, "y"), (-62.0, "y")]:
+        snapped = _snap_data(ax, value, axis)
+        xy = (snapped, 0.0) if axis == "x" else (0.0, snapped)
+        px = ax.transData.transform(xy)[0 if axis == "x" else 1]
+        assert px == pytest.approx(round(px), abs=1e-6), (
+            f"{axis}={value} snapped to {snapped}, lands on px {px}")
+
+
+def test_title_block_grid_lines_render_equal_width():
+    """Pixel probe on a rendered title block: every vertical and horizontal
+    grid line must render the same pixel width. The owner caught the right
+    frame edge at a half-pixel data position rendering 1 px while its
+    neighbours rendered 2 px — _snap_data pins the grid to the pixel grid."""
+    import io
+    import matplotlib
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+    import numpy as np
+    from PIL import Image
+
+    fig = plt.figure(figsize=(11.69, 8.27), dpi=150)
+    ax = fig.add_axes([0.70, 0.47, 0.25, 0.40])
+    ax.axis("off")
+    ax.set_xlim(-2, 93)
+    ax.set_ylim(-64, 10)
+    draw_title_block(ax, "brush_organizer",
+                     REPO / "specs" / "brush_organizer" / "spec.yaml", 0.0, -46)
+    buf = io.BytesIO()
+    fig.savefig(buf, format="png")  # no tight bbox → deterministic pixel grid
+    gray = np.asarray(Image.open(buf).convert("L")).astype(float) / 255.0
+    dark = gray < 0.5
+
+    # the info axes region in pixels (axes rect [0.70, 0.47, 0.25, 0.40])
+    y0px = int((1 - 0.87) * gray.shape[0])
+    y1px = int((1 - 0.47) * gray.shape[0])
+    x0px = int(0.70 * gray.shape[1])
+    x1px = min(gray.shape[1], x0px + 445)  # right frame edge sits at the axes edge
+    region = dark[y0px:y1px, x0px:x1px]
+
+    # horizontal lines: rows where nearly the whole title-block width is dark
+    hrows = np.where(region.sum(axis=1) > 0.8 * region.shape[1])[0]
+    hgroups = np.split(hrows, np.where(np.diff(hrows) > 1)[0] + 1)
+    assert len(hgroups) == 3, (
+        f"expected 3 horizontal title-block lines, got {len(hgroups)}")
+    hw = [len(g) for g in hgroups]
+    assert len(set(hw)) == 1, f"horizontal line widths differ: {hw}"
+
+    # vertical lines in the first row band (between top and middle lines)
+    band = region[hgroups[0][-1] + 1:hgroups[1][0], :]
+    vcols = np.where(band.sum(axis=0) > 0.9 * band.shape[0])[0]
+    vgroups = np.split(vcols, np.where(np.diff(vcols) > 1)[0] + 1)
+    assert len(vgroups) == 4, (
+        f"expected 4 vertical title-block lines, got {len(vgroups)}")
+    vw = [len(g) for g in vgroups]
+    assert len(set(vw)) == 1, f"vertical line widths differ: {vw}"

@@ -575,23 +575,46 @@ def draw_schedule(ax, pockets: list[dict], x0: float, y0: float) -> None:
             fontweight="bold")
 
 
+def _snap_data(ax, value: float, axis: str) -> float:
+    """Snap an ax data coordinate so it lands on the render pixel grid.
+
+    A line half a pixel off renders antialiased (one fully dark core px +
+    two half-intensity edges) and reads as a thinner line than its neighbour
+    on a whole-pixel position — the owner caught exactly that on the title
+    block's last vertical. Snapping makes equal-width lines render equally.
+    """
+    fig = ax.figure
+    pos = ax.get_position()
+    if axis == "x":
+        lo, hi = ax.get_xlim()
+        span = fig.get_figwidth() * 25.4
+        off, size = pos.x0, pos.width
+    else:
+        lo, hi = ax.get_ylim()
+        span = fig.get_figheight() * 25.4
+        off, size = pos.y0, pos.height
+    paper = (off + (value - lo) / (hi - lo) * size) * span
+    px = round(paper * fig.dpi / 25.4)
+    frac = (px * 25.4 / fig.dpi / span - off) / size
+    return frac * (hi - lo) + lo
+
+
 def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
     """Simplified ISO 7200 title block: framed grid with labelled fields
     (TITLE, DWG NO, SCALE, DATE, SOURCE) and the third-angle projection
     symbol (ISO 128-30 B.3) in the last cell. DWG NO is a placeholder —
-    the spec carries no drawing number."""
+    the spec carries no drawing number. All grid lines are pixel-snapped
+    so equal widths render equally."""
     cols, rows = [40, 26, 26], [8, 8]
     w, h = sum(cols), sum(rows)
-    ax.add_patch(Rectangle((x0, y0 - h), w, h, fill=False, lw=1.0,
-                           edgecolor="black"))
-    xa = x0
-    for c in cols[:-1]:
-        xa += c
-        ax.plot([xa, xa], [y0 - h, y0], **DIMLINE)
-    ya = y0
-    for r in rows[:-1]:
-        ya -= r
-        ax.plot([x0, x0 + w], [ya, ya], **DIMLINE)
+    xs = [_snap_data(ax, x0 + sum(cols[:i]), "x") for i in range(len(cols) + 1)]
+    ys = [_snap_data(ax, y0 - sum(rows[:i]), "y") for i in range(len(rows) + 1)]
+    ax.add_patch(Rectangle((xs[0], ys[-1]), xs[-1] - xs[0], ys[0] - ys[-1],
+                           fill=False, lw=1.0, edgecolor="black"))
+    for xa in xs[1:-1]:
+        ax.plot([xa, xa], [ys[-1], ys[0]], **DIMLINE)
+    for ya in ys[1:-1]:
+        ax.plot([xs[0], xs[-1]], [ya, ya], **DIMLINE)
     fields = [  # (col, row, label, value) — label above value
         (0, 0, "TITLE", part.upper().replace("_", " ")),
         (1, 0, "DWG NO", "BO-001"),
@@ -600,14 +623,14 @@ def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
         (1, 1, "SOURCE", spec_path.name),
     ]
     for col, row, label, value in fields:
-        cx = x0 + 2 + sum(cols[:col])
-        top = y0 - sum(rows[:row])
+        cx = xs[col] + 2
+        top = ys[row]
         ax.text(cx, top - 1.5, label, fontsize=6,
                 color="#555555", va="top")
         ax.text(cx, top - 5, value, fontsize=9,
                 fontweight="bold", va="top")
     # third-angle symbol instead of text in the last cell
-    draw_projection_symbol(ax, x0 + cols[0] + cols[1] + 12, y0 - rows[0] - 4, 6)
+    draw_projection_symbol(ax, xs[2] + 12, ys[1] - 4, 6)
 
 
 # ---------------------------------------------------------------- sheet
@@ -725,7 +748,8 @@ def main() -> None:
     apply_scale(fig, ax_end, (0.70, 0.12, 0.22, 0.32))
 
     ax_info.axis("off")
-    ax_info.set_xlim(-2, 92)
+    ax_info.set_xlim(-2, 93)  # 93: right frame edge must NOT sit on the axes
+    # edge — matplotlib clips at the axes and would shave half the line width
     ax_info.set_ylim(-64, 10)  # schedule title (y=7.2) stays inside the axes
     draw_schedule(ax_info, spec["features"]["pockets"], 0.0, 0.0)
     draw_title_block(ax_info, spec["part"], spec_path, 0.0, -46)
