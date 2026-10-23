@@ -3,7 +3,7 @@
 
 Views are TRUE projections of the built model (build123d
 ``project_to_viewport``, OCCT hidden-line removal): visible edges solid,
-hidden edges dotted. The model is built from the approved spec, so a feature
+hidden edges dashed narrow (ISO 128-24). The model is built from the approved spec, so a feature
 cannot go missing from the drawing — the views are not drawn by hand.
 Dimensions, pocket labels, the schedule and the title block are generated
 from the spec (the intent).
@@ -31,6 +31,7 @@ import importlib
 import json
 import math
 import sys
+from datetime import date
 from pathlib import Path
 
 import matplotlib
@@ -39,6 +40,7 @@ matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import yaml
 from build123d import GeomType
+from matplotlib.patches import Circle, Polygon, Rectangle
 
 TOL = 0.05  # mm — probe tolerance
 
@@ -52,36 +54,84 @@ HIDDEN = dict(color="black", lw=1.0,
               linestyle=(0, (12, 3)))        # 02.1 dashed narrow
 CENTERLINE = dict(color="black", lw=1.0,
                   linestyle=(0, (24, 3, 1, 3)))  # 04.1 long-dashed dotted narrow
+DIMLINE = dict(color="#1a1a1a", lw=1.0)      # 01.1 continuous narrow
+
+SCALE = 0.5  # 1:2 — ISO 5455 preferred reduction scale, declared in the title block
+
+
+def apply_scale(fig, ax, rect, scale: float = SCALE) -> None:
+    """Set view limits so geometry renders at exactly `scale` (paper/data).
+
+    ISO 5455: the scale is a preferred ratio, shared by all views and
+    declared in the title block. Axes paper size (mm) / scale = data range,
+    centred on the midpoints of the content-based limits the draw functions
+    set first.
+    """
+    w_mm = fig.get_figwidth() * 25.4 * rect[2]
+    h_mm = fig.get_figheight() * 25.4 * rect[3]
+    x0, x1 = ax.get_xlim()
+    y0, y1 = ax.get_ylim()
+    cx, cy = (x0 + x1) / 2, (y0 + y1) / 2
+    ax.set_xlim(cx - w_mm / (2 * scale), cx + w_mm / (2 * scale))
+    ax.set_ylim(cy - h_mm / (2 * scale), cy + h_mm / (2 * scale))
+
+
+def draw_projection_symbol(ax, x0: float, y0: float, s: float) -> None:
+    """Third-angle projection symbol (ISO 128-30 B.3, proportions per
+    ISO 5456-2 fig. A.2): frustum side view (large end left, small end right)
+    + concentric circles = the view from the small end, placed on the right.
+    Narrow continuous lines; centre lines omitted (ISO 5456-2 A.2 allows it).
+    s = large-end height in axis units."""
+    ax.add_patch(Polygon(
+        [(x0, y0 + s / 2), (x0 + s, y0 + s / 4), (x0 + s, y0 - s / 4),
+         (x0, y0 - s / 2)], fill=False, lw=1.0, edgecolor="black"))
+    ax.add_patch(Circle((x0 + 1.75 * s, y0), s / 4, fill=False, lw=1.0,
+                        edgecolor="black"))
+    ax.add_patch(Circle((x0 + 1.75 * s, y0), s / 2, fill=False, lw=1.0,
+                        edgecolor="black"))
 
 
 # ---------------------------------------------------------------- helpers
 
 
-def dim_h(ax, x0, x1, y, text, offset=6, color="#1a1a1a"):
-    """Horizontal dimension line with arrows, extension ticks and label."""
+def dim_h(ax, x0, x1, y, text, offset=6, ext0=None, ext1=None, color="#1a1a1a"):
+    """Horizontal dimension line (ISO 129): arrows, label above the line and
+    thin extension lines from the features (ext0/ext1 = feature y) with a
+    2 mm gap at the feature and a 4 mm overhang past the dimension line."""
     ax.annotate(
         "", xy=(x0, y), xytext=(x1, y),
         arrowprops=dict(arrowstyle="<|-|>", color=color, shrinkA=0, shrinkB=0,
-                        mutation_scale=10, lw=1.0),
+                        mutation_scale=12, lw=1.0),
     )
+    for xf, ef in ((x0, ext0), (x1, ext1)):
+        if ef is None:
+            continue
+        d = 1 if y > ef else -1
+        ax.plot([xf, xf], [ef + d * 2, y + d * 4], **DIMLINE)
     ax.text((x0 + x1) / 2, y + offset, text, ha="center", va="bottom",
-            fontsize=7, color=color)
+            fontsize=10, color=color)
 
 
-def dim_v(ax, x, y0, y1, text, offset=6, color="#1a1a1a"):
-    """Vertical dimension line with arrows and label."""
+def dim_v(ax, x, y0, y1, text, offset=6, ext0=None, ext1=None, color="#1a1a1a"):
+    """Vertical dimension line (ISO 129): arrows, label beside the line and
+    thin extension lines from the features (ext0/ext1 = feature x)."""
     ax.annotate(
         "", xy=(x, y0), xytext=(x, y1),
         arrowprops=dict(arrowstyle="<|-|>", color=color, shrinkA=0, shrinkB=0,
-                        mutation_scale=10, lw=1.0),
+                        mutation_scale=12, lw=1.0),
     )
+    for yf, ef in ((y0, ext0), (y1, ext1)):
+        if ef is None:
+            continue
+        d = 1 if x > ef else -1
+        ax.plot([ef + d * 2, x + d * 4], [yf, yf], **DIMLINE)
     ax.text(x + offset, (y0 + y1) / 2, text, ha="left", va="center",
-            fontsize=7, rotation=90, color=color)
+            fontsize=10, rotation=90, color=color)
 
 
 def leader(ax, xy, xytext, text, color="#1a1a1a"):
     ax.annotate(
-        text, xy=xy, xytext=xytext, fontsize=6.5, color=color,
+        text, xy=xy, xytext=xytext, fontsize=9, color=color,
         arrowprops=dict(arrowstyle="->", color=color, lw=1.0),
         ha="center", va="center",
     )
@@ -324,6 +374,7 @@ def build_manifest(views: dict, probes: dict, spec: dict,
         "generator": "tools/render_drawing.py",
         "principle": ("views: projected from the model (build123d "
                       "project_to_viewport, OCCT HLR); annotations: from the spec"),
+        "scale": "1:2 (ISO 5455)",
         "line_styles": {
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
             "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
@@ -369,21 +420,22 @@ def draw_top(ax, view, spec: dict) -> list[str]:
         leader(ax, (cx + hx * 0.7, hy * 0.7), (cx, W / 2 + 14), pocket_label(p))
     note = fill_note(feats.get("x_fill"))
     if note:
-        ax.text(-L / 2 - 43, W / 2 + 26, note, fontsize=5.5,
+        ax.text(-L / 2 - 43, W / 2 + 26, note, fontsize=8,
                 family="monospace", color="#333333", va="top")
     xs = sorted({p["x_position"] for p in pockets})
     y_dim = -W / 2 - 12
     if "pitch" in plan:
         for a, b in zip(xs, xs[1:]):
-            dim_h(ax, a, b, y_dim, plan["pitch"], offset=2)
+            dim_h(ax, a, b, y_dim, plan["pitch"], offset=2, ext0=0, ext1=0)
         drawn.append("pitch")
-    dim_h(ax, -L / 2, L / 2, y_dim - 12, plan["length"], offset=2)
-    dim_v(ax, -L / 2 - 14, -W / 2, W / 2, plan["width"])
+    dim_h(ax, -L / 2, L / 2, y_dim - 12, plan["length"], offset=2,
+          ext0=-W / 2, ext1=-W / 2)
+    dim_v(ax, -L / 2 - 14, -W / 2, W / 2, plan["width"], ext0=-L / 2, ext1=-L / 2)
     drawn += ["length", "width"]
     ax.set_xlim(-L / 2 - 45, L / 2 + 30)
     ax.set_ylim(-W / 2 - 40, W / 2 + 30)
     ax.set_aspect("equal")
-    ax.set_title("TOP VIEW", fontsize=8, loc="left")
+    ax.set_title("TOP VIEW", fontsize=10, loc="left")
     ax.axis("off")
     return drawn
 
@@ -400,17 +452,18 @@ def draw_front(ax, view, spec: dict) -> list[str]:
     plan = {e["tag"]: e["text"] for e in dimension_plan(spec)
             if e["view"] == "front"}
     leg_x = -L / 2 + inset  # left leg centre
-    dim_v(ax, -L / 2 - 14, lh, lh + H, plan["height"])
+    dim_v(ax, -L / 2 - 14, lh, lh + H, plan["height"],
+          ext0=-L / 2, ext1=-L / 2)
     leader(ax, (leg_x + ld / 2 + 4, lh / 2), (leg_x + 30, lh / 2 - 6),
            plan["leg_height"])
     leader(ax, (leg_x, lh), (leg_x - 2, -8), plan["leg_inset"])
     leader(ax, (leg_x - ld / 2, lh / 2), (leg_x - 34, lh / 2 + 8),
            plan["leg_diameter"])
-    dim_h(ax, -L / 2, L / 2, -24, plan["length"], offset=2)
+    dim_h(ax, -L / 2, L / 2, -24, plan["length"], offset=2, ext0=0, ext1=0)
     ax.set_xlim(-L / 2 - 45, L / 2 + 30)
     ax.set_ylim(-40, lh + H + 12)
     ax.set_aspect("equal")
-    ax.set_title("FRONT VIEW", fontsize=8, loc="left")
+    ax.set_title("FRONT VIEW", fontsize=10, loc="left")
     ax.axis("off")
     return ["height", "leg_height", "leg_inset", "leg_diameter", "length"]
 
@@ -424,12 +477,14 @@ def draw_end(ax, view, spec: dict) -> list[str]:
     W, H = dims["width"], dims["height"]
     lh = dims["leg_height"]
     plan = {e["tag"]: e["text"] for e in dimension_plan(spec) if e["view"] == "end"}
-    dim_v(ax, W / 2 + 14, 0, lh + H, plan["total_height"])
-    dim_h(ax, -W / 2, W / 2, lh + H + 8, plan["width"], offset=2)
+    dim_v(ax, W / 2 + 14, 0, lh + H, plan["total_height"],
+          ext0=W / 2, ext1=W / 2)
+    dim_h(ax, -W / 2, W / 2, lh + H + 8, plan["width"], offset=2,
+          ext0=lh + H, ext1=lh + H)
     ax.set_xlim(-W / 2 - 30, W / 2 + 30)
     ax.set_ylim(-12, lh + H + 22)
     ax.set_aspect("equal")
-    ax.set_title("END VIEW", fontsize=8, loc="left")
+    ax.set_title("END VIEW", fontsize=10, loc="left")
     ax.axis("off")
     return ["total_height", "width"]
 
@@ -442,26 +497,49 @@ def draw_schedule(ax, pockets: list[dict], x0: float, y0: float) -> None:
                 else f"{p['along_x']:g}×{p['along_y']:g}")
         rows.append([p["id"], p["shape"], size, f"{p['depth']:g}",
                      f"{p['x_position']:+g}"])
-    cell_w, cell_h = 16, 6
+    cell_w, cell_h = 17, 6
     for r, row in enumerate(rows):
         for c, val in enumerate(row):
             ax.text(x0 + c * cell_w, y0 - r * cell_h, val,
-                    fontsize=6.5, family="monospace",
+                    fontsize=9, family="monospace",
                     fontweight="bold" if r == 0 else "normal", va="top")
-    ax.text(x0, y0 + cell_h * 1.2, "POCKET SCHEDULE", fontsize=7,
+    ax.text(x0, y0 + cell_h * 1.2, "POCKET SCHEDULE", fontsize=10,
             fontweight="bold")
 
 
 def draw_title_block(ax, part: str, spec_path: Path, x0: float, y0: float):
-    lines = [
-        f"PART: {part}",
-        "UNITS: mm   PROJECTION: third angle",
-        f"SOURCE: {spec_path.name} (authoritative)",
-        "VIEWS: projected from the model",
-        "DIMENSIONS: from the spec (intent)",
+    """Simplified ISO 7200 title block: framed grid with labelled fields
+    (TITLE, DWG NO, SCALE, DATE, SOURCE) and the third-angle projection
+    symbol (ISO 128-30 B.3) in the last cell. DWG NO is a placeholder —
+    the spec carries no drawing number."""
+    cols, rows = [40, 26, 26], [8, 8]
+    w, h = sum(cols), sum(rows)
+    ax.add_patch(Rectangle((x0, y0 - h), w, h, fill=False, lw=1.0,
+                           edgecolor="black"))
+    xa = x0
+    for c in cols[:-1]:
+        xa += c
+        ax.plot([xa, xa], [y0 - h, y0], **DIMLINE)
+    ya = y0
+    for r in rows[:-1]:
+        ya -= r
+        ax.plot([x0, x0 + w], [ya, ya], **DIMLINE)
+    fields = [  # (col, row, label, value) — label above value
+        (0, 0, "TITLE", part.upper().replace("_", " ")),
+        (1, 0, "DWG NO", "BO-001"),
+        (2, 0, "SCALE", "1:2"),
+        (0, 1, "DATE", date.today().isoformat()),
+        (1, 1, "SOURCE", spec_path.name),
     ]
-    for i, line in enumerate(lines):
-        ax.text(x0, y0 - i * 6, line, fontsize=6.5, family="monospace")
+    for col, row, label, value in fields:
+        cx = x0 + 2 + sum(cols[:col])
+        top = y0 - sum(rows[:row])
+        ax.text(cx, top - 1.5, label, fontsize=6, family="monospace",
+                color="#555555", va="top")
+        ax.text(cx, top - 5, value, fontsize=9, family="monospace",
+                fontweight="bold", va="top")
+    # third-angle symbol instead of text in the last cell
+    draw_projection_symbol(ax, x0 + cols[0] + cols[1] + 12, y0 - rows[0] - 4, 6)
 
 
 # ---------------------------------------------------------------- main
@@ -482,7 +560,7 @@ def main() -> None:
     fig.suptitle(
         f"{spec['part']} — dimensioned drawing "
         "(views: projected from model, dimensions: from spec)",
-        fontsize=10, fontweight="bold",
+        fontsize=12, fontweight="bold",
     )
     ax_top = fig.add_axes([0.05, 0.55, 0.60, 0.38])
     ax_front = fig.add_axes([0.05, 0.12, 0.60, 0.32])
@@ -502,9 +580,15 @@ def main() -> None:
                 f"dimension plan drift in {view}: drawn={sorted(tags)} "
                 f"plan={sorted(want)}")
 
+    # ISO 5455: every view at the declared 1:2 scale — data range from the
+    # axes paper size, centred on the content midpoints the draw functions set
+    apply_scale(fig, ax_top, (0.05, 0.55, 0.60, 0.38))
+    apply_scale(fig, ax_front, (0.05, 0.12, 0.60, 0.32))
+    apply_scale(fig, ax_end, (0.70, 0.12, 0.22, 0.32))
+
     ax_info.axis("off")
     ax_info.set_xlim(-2, 92)
-    ax_info.set_ylim(-58, 4)
+    ax_info.set_ylim(-64, 4)  # title block: 2 rows x 8 from y=-46 -> bottom -62
     draw_schedule(ax_info, spec["features"]["pockets"], 0.0, 0.0)
     draw_title_block(ax_info, spec["part"], spec_path, 0.0, -46)
 
