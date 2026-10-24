@@ -1,6 +1,7 @@
 osifont — ISO 3098 technical lettering font
 Source: https://github.com/hikikomori82/osifont (author: hikikomori82)
 License: GNU General Public License v3 with GPL font exception
+File: unmodified upstream osifont.ttf; the corresponding source (.sfd) is available at the URL above (GPL-3.0, section 6).
 
 === GNU General Public License v3 ===
 
