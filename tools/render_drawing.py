@@ -309,6 +309,77 @@ def plot_edges(ax, edges, step: float = 1.0, max_points: int = 96, **style) -> i
     return len(edges)
 
 
+def plot_polylines(ax, polys, **style) -> int:
+    """Plot pre-sampled polylines (trimmed edges) with the same style."""
+    for xs, ys in polys:
+        ax.plot(xs, ys, **style)
+    return len(polys)
+
+
+def _outline_trim_split(edges, pockets, lw_pt: float, scale: float,
+                        step: float = 1.0, max_points: int = 96):
+    """Split edges into (plot-as-is edges, trimmed polylines).
+
+    A web arm ending ON a pocket outline draws its butt-cap corner up to
+    ``hw/tan(theta)`` past the outline (the ink artifact the owner flagged
+    2026-10-24: "X zebra presahuji ven z obdelniku"). Such an end is pulled
+    back along the arm so the cap corners stay under the outline's own line
+    width — no ink outside the opening, no visible gap at 1:2. Edges lying
+    wholly ON an outline (the outline itself, junction segments) are
+    returned unchanged.
+    """
+    hw = lw_pt * 25.4 / 72 / 2 / scale  # half line width in data mm
+
+    def rel(p, x, y):
+        return _cavity_plan_rel(x, y, p)
+
+    normal, trimmed_polys = [], []
+    for e in edges:
+        n = min(max_points, max(2, math.ceil(e.length / step) + 1))
+        pts = [(v.X, v.Y) for v in (e @ (i / (n - 1)) for i in range(n))]
+        pk = next((p for p in pockets
+                   if any(rel(p, x, y) != "OUT" for x, y in pts)), None)
+        if pk is None:
+            normal.append(e)
+            continue
+        rels = [rel(pk, x, y) for x, y in pts]
+        if all(r == "ON" for r in rels):
+            normal.append(e)  # outline / junction segment — never trimmed
+            continue
+        trimmed = list(pts)
+        changed = False
+        for idx, nb in ((0, 1), (-1, -2)):
+            if rels[idx] == "ON" and rels[nb] == "IN":
+                (x0, y0), (x1, y1) = pts[idx], pts[nb]
+                dx, dy = x1 - x0, y1 - y0
+                L = math.hypot(dx, dy)
+                if L < 1e-9:
+                    continue
+                if pk["shape"] == "circle":
+                    tx, ty = -y0, x0 - pk["x_position"]  # tangent to the arc
+                else:
+                    px_, py_ = x0 - pk["x_position"], y0
+                    hx_, hy_ = pocket_half_xy(pk)
+                    tx, ty = ((0.0, 1.0) if abs(abs(px_) - hx_)
+                              >= abs(abs(py_) - hy_) else (1.0, 0.0))
+                tl = math.hypot(tx, ty) or 1.0
+                tx, ty = tx / tl, ty / tl
+                ux, uy = dx / L, dy / L
+                sin_t = abs(ux * ty - uy * tx)
+                cos_t = abs(ux * tx + uy * ty)
+                if sin_t < 1e-6:
+                    continue
+                pull = min(hw * cos_t / sin_t, L * 0.45)
+                trimmed[idx] = (x0 + ux * pull, y0 + uy * pull)
+                changed = True
+        if changed:
+            trimmed_polys.append(([p[0] for p in trimmed],
+                                  [p[1] for p in trimmed]))
+        else:
+            normal.append(e)
+    return normal, trimmed_polys
+
+
 # ---------------------------------------------------------------- rib-edge suppression
 #
 # The fused model keeps the webs' embedded parts (rib ends 2 mm inside the
@@ -750,11 +821,15 @@ def build_manifest(views: dict, probes: dict, spec: dict,
 def draw_top(ax, view, spec: dict) -> list[str]:
     """Top view: projected edges + spec-driven labels, note and dimensions."""
     vis, hid = view
-    plot_edges(ax, vis, **SOLID)
-    plot_edges(ax, hid, **HIDDEN)
     dims, feats = spec["dimensions"], spec["features"]
     pockets = feats["pockets"]
     L, W = dims["length"], dims["width"]
+    vis_n, vis_t = _outline_trim_split(vis, pockets, SOLID["lw"], SCALE)
+    hid_n, hid_t = _outline_trim_split(hid, pockets, HIDDEN["lw"], SCALE)
+    plot_edges(ax, vis_n, **SOLID)
+    plot_edges(ax, hid_n, **HIDDEN)
+    plot_polylines(ax, vis_t, **SOLID)
+    plot_polylines(ax, hid_t, **HIDDEN)
     plan = {e["tag"]: e["text"] for e in dimension_plan(spec) if e["view"] == "top"}
     drawn: list[str] = []
     for p in pockets:

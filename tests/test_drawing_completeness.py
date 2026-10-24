@@ -221,3 +221,22 @@ def test_pocket_silhouettes_span_full_depth(gate, spec):
             assert cov >= top_z - 0.05, (
                 f"{p['id']}: silhouette incomplete in the {view} view "
                 f"(covers up to {cov:.2f} of {top_z:.2f})")
+
+def test_web_arm_ends_trimmed_inside_outlines(gate, spec):
+    """Butt caps of web arms ending on a pocket outline must not stick out.
+
+    Owner finding 2026-10-24: the thick arm lines' square end caps poked
+    ~0.5-0.9 mm of ink past the 15x12 outline. The trim pulls such ends
+    back along the arm; every trimmed sample must stay off 'OUT' of every
+    pocket, and the outline/junction segments must pass through untrimmed.
+    """
+    from tools.render_drawing import _cavity_plan_rel, _outline_trim_split
+
+    pockets = spec["features"]["pockets"]
+    vis_n, vis_t = _outline_trim_split(gate[0]["top"][0], pockets, 2.0, 0.5)
+    hid_n, hid_t = _outline_trim_split(gate[0]["top"][1], pockets, 1.0, 0.5)
+    assert vis_t, "expected at least one trimmed visible arm in the top view"
+    for polys in (vis_t, hid_t):
+        for xs, ys in polys:
+            for x, y in zip(xs, ys):
+                assert any(_cavity_plan_rel(x, y, p) != "OUT" for p in pockets)
