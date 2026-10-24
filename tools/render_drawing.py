@@ -471,6 +471,33 @@ def _web_solids(spec: dict, builder_module) -> list:
     return webs
 
 
+def _line_key(e):
+    a, b = e @ 0, e @ 1
+    pa = (round(a.X, 4), round(a.Y, 4), round(a.Z, 4))
+    pb = (round(b.X, 4), round(b.Y, 4), round(b.Z, 4))
+    return (pa, pb) if pa <= pb else (pb, pa)
+
+
+def _seam_edges(part) -> list:
+    """Seam edges (a cylindrical face meeting itself) are modeling artifacts,
+    not part edges — they must never serve as the "real edge" that shields a
+    false web edge from suppression, and per the owner's 2026-10-24 decision
+    they are suppressed from the drawing. A cylinder's only straight edges are
+    its seams, so seams are keyed geometrically from the cylindrical faces."""
+    faces_by_key, edges_by_key = {}, {}
+    for f in part.faces():
+        for fe in f.edges():
+            if fe.geom_type != GeomType.LINE:
+                continue
+            k = _line_key(fe)
+            faces_by_key.setdefault(k, set()).add(id(f))
+            edges_by_key.setdefault(k, fe)
+    # a true seam belongs to exactly ONE face (the cylinder meeting itself);
+    # a wall junction line is shared by the cylinder and the rib plane — two
+    # distinct faces — and must NOT be treated as a seam
+    return [edges_by_key[k] for k, fs in faces_by_key.items() if len(fs) == 1]
+
+
 def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
     """Split the part's edges into (keep, suppress) web classes.
 
@@ -478,9 +505,11 @@ def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
     the spec with the model's own helpers so the classification cannot drift
     from the model. Kept: horizontal edges on the webs' top/bottom faces with
     a point strictly inside the pocket cavity and none outside it — the
-    void-facing floor and bottom chords. Suppressed: embedded rib ends, wall
-    junctions, web-web crossing seams and wall arcs — edges of homogeneous
-    material. Non-web edges (outlines, silhouettes, rims, legs) stay. The
+    void-facing floor and bottom chords — and the wall junctions (edges lying
+    on the pocket wall: real concave edges, strict ISO 128 draws them dashed;
+    owner request 2026-10-24). Suppressed: embedded rib ends and web-web
+    crossing seams — edges of homogeneous material. Non-web edges (outlines,
+    silhouettes, rims, legs) stay. The
     per-view drop decision (strictly inside the pocket outline vs. on it)
     happens later, in ``suppress_false_rib_edges``.
     """
@@ -494,23 +523,7 @@ def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
     pockets = {p["id"]: p for p in spec["features"]["pockets"]}
     webs = _web_solids(spec, builder_module)
     web_bbs = [(pid, w.bounding_box()) for pid, w in webs]
-    # Seam edges (a cylindrical face meeting itself) are modeling artifacts,
-    # not part edges — they must never serve as the "real edge" that shields
-    # a false web edge from suppression. A cylinder's only straight edges are
-    # its seams, so seams are keyed geometrically from the cylindrical faces.
-    def _line_key(e):
-        a, b = e @ 0, e @ 1
-        pa = (round(a.X, 4), round(a.Y, 4), round(a.Z, 4))
-        pb = (round(b.X, 4), round(b.Y, 4), round(b.Z, 4))
-        return (pa, pb) if pa <= pb else (pb, pa)
-
-    seam_keys = set()
-    for f in part.faces():
-        if f.geom_type != GeomType.CYLINDER:
-            continue
-        for fe in f.edges():
-            if fe.geom_type == GeomType.LINE:
-                seam_keys.add(_line_key(fe))
+    seam_keys = {_line_key(e) for e in _seam_edges(part)}
     edges = list(part.edges())
     seam_ids = {id(e) for e in edges
                 if e.geom_type == GeomType.LINE and _line_key(e) in seam_keys}
@@ -540,7 +553,9 @@ def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
         horizontal = max(zs) - min(zs) <= 1e-6
         at_face = any(abs(z - leg_h) <= 1e-6 or abs(z - floor_z) <= 1e-6 for z in zs)
         void_facing = "OUT" not in rels and "IN" in rels
-        (keep if (horizontal and at_face and void_facing) else suppress).append((e, hit))
+        junction = all(r == "ON" for r in rels)
+        (keep if ((horizontal and at_face and void_facing) or junction)
+         else suppress).append((e, hit))
     stats = {"web_keep": len(keep), "web_suppress": len(suppress),
              "seam_edges": len(seam_ids)}
     return keep, suppress, others, stats
@@ -582,7 +597,8 @@ def _matches_suppressed(proj_edge, polys, eps: float = 0.05, n: int = 15) -> boo
 
 
 def suppress_false_rib_edges(views, part, spec: dict, builder_module):
-    """Filter projected views: drop edges whose 3D source is a false web edge.
+    """Filter projected views: drop edges whose 3D source is a false web edge
+    or a cylinder seam.
 
     The true model's projection is filtered, not re-projected from a modified
     copy — HLR visibility stays exactly as the model dictates; only edges of
@@ -591,6 +607,7 @@ def suppress_false_rib_edges(views, part, spec: dict, builder_module):
     edge (bbox prefilter + point-to-polyline match).
     """
     keep3d, supp3d, others3d, stats = classify_rib_edges(part, spec, builder_module)
+    seam3d = _seam_edges(part)
     pockets = {p["id"]: p for p in spec["features"]["pockets"]}
     leg_h = spec["dimensions"]["leg_height"]
     top_z = leg_h + spec["dimensions"]["height"]
@@ -604,6 +621,13 @@ def suppress_false_rib_edges(views, part, spec: dict, builder_module):
                 supp_polys += polys
             else:
                 survivor_polys += polys
+        # cylinder seam edges are projection artifacts (owner 2026-10-24):
+        # dropped in the end view, where they show as a stray line on the
+        # pocket axis; in the front view they coincide with the wall
+        # silhouette, so dropping them there could eat the silhouette itself
+        if view == "end":
+            for e in seam3d:
+                supp_polys += _analytic_2d(e, view)
         other_polys = [poly for e in real3d for poly in _analytic_2d(e, view)]
         other_polys += survivor_polys
 
@@ -793,9 +817,9 @@ def build_manifest(views: dict, probes: dict, spec: dict,
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
             "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
             "centre_lines": ("ISO 128-24 type 04.1, long-dashed dotted narrow; "
-                             "pocket centre crosses are 6 mm, inside the "
-                             "opening (owner 2026-10-24) — below one dash "
-                             "period they render as a continuous narrow cross"),
+                             "pocket centre lines extend 3 mm beyond the "
+                             "opening (owner delegation 2026-10-24: the more "
+                             "professional per ISO form)"),
             "dimensions": "ISO 128-24 type 01.1, continuous narrow",
         },
         "views": {
@@ -834,12 +858,13 @@ def draw_top(ax, view, spec: dict) -> list[str]:
     drawn: list[str] = []
     for p in pockets:
         cx, hx, hy = p["x_position"], *pocket_half_xy(p)
-        # ISO 128-24 type 04.1 centre lines: short cross at the pocket
-        # centre, INSIDE the opening (owner 2026-10-24: no centre line may
-        # stick out of the opening). A 6 mm cross is below one 04.1 dash
-        # period, so it renders as a continuous narrow cross.
-        ax.plot([cx - 3, cx + 3], [0, 0], **CENTERLINE)
-        ax.plot([cx, cx], [-3, 3], **CENTERLINE)
+        # ISO 128-24 type 04.1 centre lines: dash-dot cross through the
+        # pocket centre, extending 3 mm beyond the opening (owner delegation
+        # 2026-10-24: the more professional per ISO form — the classic
+        # convention draws centre lines slightly past the outline; 3 mm keeps
+        # neighbouring centre lines clear of each other at the 40 mm pitch).
+        ax.plot([cx - hx - 3, cx + hx + 3], [0, 0], **CENTERLINE)
+        ax.plot([cx, cx], [-hy - 3, hy + 3], **CENTERLINE)
         leader(ax, (cx + hx * 0.7, hy * 0.7), (cx, W / 2 + 14), pocket_label(p))
     note = fill_note(feats.get("x_fill"))
     if note:
@@ -1114,11 +1139,11 @@ def main() -> None:
     manifest["annotations"]["drawn_tags"] = drawn
     manifest["rib_edge_suppression"] = {
         "rule": ("web-related edges of homogeneous material are dropped per "
-                 "view: a suppressed edge is dropped only where its "
-                 "projection lies strictly inside its pocket's outline, or "
-                 "wholly in the walls (embedded rib ends); on the outline it "
-                 "survives, because there it is the pocket silhouette "
-                 "reaching the block bottom (owner 2026-10-24). Void-facing "
+                 "view: embedded rib ends (wholly in the walls) and web-web "
+                 "crossing seams; cylinder seam edges are dropped in the end "
+                 "view (owner 2026-10-24). Wall junctions — edges lying on "
+                 "the pocket wall — are real concave edges and are kept "
+                 "(drawn dashed, strict ISO, owner 2026-10-24). Void-facing "
                  "floor/bottom chords are kept in every view"),
         **suppression,
     }

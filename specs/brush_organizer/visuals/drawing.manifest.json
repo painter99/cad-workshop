@@ -20,7 +20,7 @@
   "line_styles": {
     "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
     "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
-    "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow; pocket centre crosses are 6 mm, inside the opening (owner 2026-10-24) — below one dash period they render as a continuous narrow cross",
+    "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow; pocket centre lines extend 3 mm beyond the opening (owner delegation 2026-10-24: the more professional per ISO form)",
     "dimensions": "ISO 128-24 type 01.1, continuous narrow"
   },
   "views": {
@@ -30,11 +30,11 @@
     },
     "front": {
       "visible_edges": 10,
-      "hidden_edges": 206
+      "hidden_edges": 246
     },
     "end": {
       "visible_edges": 12,
-      "hidden_edges": 224
+      "hidden_edges": 260
     }
   },
   "probes": {
@@ -216,11 +216,11 @@
     }
   },
   "rib_edge_suppression": {
-    "rule": "web-related edges of homogeneous material are dropped per view: a suppressed edge is dropped only where its projection lies strictly inside its pocket's outline, or wholly in the walls (embedded rib ends); on the outline it survives, because there it is the pocket silhouette reaching the block bottom (owner 2026-10-24). Void-facing floor/bottom chords are kept in every view",
+    "rule": "web-related edges of homogeneous material are dropped per view: embedded rib ends (wholly in the walls) and web-web crossing seams; cylinder seam edges are dropped in the end view (owner 2026-10-24). Wall junctions — edges lying on the pocket wall — are real concave edges and are kept (drawn dashed, strict ISO, owner 2026-10-24). Void-facing floor/bottom chords are kept in every view",
     "web_edges": {
-      "web_keep": 96,
-      "web_suppress": 104,
-      "seam_edges": 40
+      "web_keep": 176,
+      "web_suppress": 24,
+      "seam_edges": 8
     },
     "per_view": {
       "top": {
@@ -229,11 +229,11 @@
       },
       "front": {
         "dropped_visible": 0,
-        "dropped_hidden": 64
+        "dropped_hidden": 24
       },
       "end": {
         "dropped_visible": 0,
-        "dropped_hidden": 64
+        "dropped_hidden": 28
       }
     }
   }

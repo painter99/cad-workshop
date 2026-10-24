@@ -20,6 +20,7 @@ from tools.render_drawing import (
     _drop_candidate,
     _inside_cavity_view,
     _matches_suppressed,
+    _seam_edges,
     build_manifest,
     classify_rib_edges,
     dimension_plan,
@@ -143,6 +144,7 @@ def test_false_rib_edges_fully_suppressed(gate, rib_split, spec):
     pockets = {p["id"]: p for p in spec["features"]["pockets"]}
     leg_h = spec["dimensions"]["leg_height"]
     top_z = leg_h + spec["dimensions"]["height"]
+    seam3d = _seam_edges(build(spec))
     for view, (vis, hid) in views.items():
         supp_polys, survivor_polys = [], []
         for e, pid in supp3d:
@@ -151,6 +153,9 @@ def test_false_rib_edges_fully_suppressed(gate, rib_split, spec):
                 supp_polys += polys
             else:
                 survivor_polys += polys
+        if view == "end":
+            for e in seam3d:
+                supp_polys += _analytic_2d(e, view)
         real_polys = [poly for e in real3d for poly in _analytic_2d(e, view)]
         real_polys += survivor_polys
         for lst in (vis, hid):
@@ -158,6 +163,30 @@ def test_false_rib_edges_fully_suppressed(gate, rib_split, spec):
                 if _matches_suppressed(e, supp_polys):
                     assert _matches_suppressed(e, real_polys), (
                         f"{view}: projected edge matches only a false rib edge")
+
+
+def test_strict_iso_junctions_kept_and_seams_suppressed(gate, spec):
+    """Strict ISO variant (owner 2026-10-24): wall junctions (real concave
+    edges) are drawn dashed even where their projection lies strictly inside
+    the pocket silhouette, while cylinder seam edges disappear from the end
+    view."""
+    views, _, _ = gate
+    seam3d = _seam_edges(build(spec))
+    polys = [poly for e in seam3d for poly in _analytic_2d(e, "end")]
+    for lst in views["end"]:
+        for e in lst:
+            assert not _matches_suppressed(e, polys), (
+                "end view: cylinder seam edge still drawn")
+    _, hid_f = views["front"]
+    found = 0
+    for e in hid_f:
+        b = e.bounding_box()
+        if abs(b.min.X - b.max.X) > 0.05:
+            continue
+        off = abs((b.min.X + b.max.X) / 2 - 100.0)
+        if 6.0 < off < 14.5 and b.min.Y > 4.9 and b.max.Y < 25.1:
+            found += 1
+    assert found >= 2, "P6 front view: wall junction lines missing"
 
 
 def test_floor_lines_survive_in_front_and_end(gate, spec):
