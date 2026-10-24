@@ -230,13 +230,12 @@ def dimension_plan(spec: dict) -> list[dict]:
 # ---------------------------------------------------------------- projection
 
 
-def load_builder(spec_path: Path):
-    """Resolve the part's model builder by convention: models/<part>.build."""
+def load_model_module(spec_path: Path):
+    """Resolve the part's model module by convention: models/<part>."""
     root = Path(__file__).resolve().parents[1]
     if str(root) not in sys.path:  # CLI run: sys.path[0] is tools/, not root
         sys.path.insert(0, str(root))
-    module = importlib.import_module(f"models.{spec_path.parent.name}")
-    return module.build
+    return importlib.import_module(f"models.{spec_path.parent.name}")
 
 
 def project_views(part, dims: dict) -> dict[str, tuple[list, list]]:
@@ -308,6 +307,225 @@ def plot_edges(ax, edges, step: float = 1.0, max_points: int = 96, **style) -> i
         xs, ys = zip(*pts)
         ax.plot(xs, ys, **st)
     return len(edges)
+
+
+# ---------------------------------------------------------------- rib-edge suppression
+#
+# The fused model keeps the webs' embedded parts (rib ends 2 mm inside the
+# walls) and every web touching a wall creates junction edges on the wall
+# surface. Projected, these are the artifacts the owner rejected on
+# 2026-10-23/24: bar ends overrunning the pocket outlines (top view),
+# "crowns" of ticks and connector arcs at the walls (front/end views) and
+# web-web crossing seams. None of them is a transition of functional
+# surfaces — the material behind a pocket outline is homogeneous, and
+# ISO 128 draws no edges inside homogeneous material. Of all web-related
+# edges the drawing therefore keeps ONLY the void-facing floor/bottom
+# chords (the pocket floor line and the X seen through the opening) and
+# suppresses the rest. The model itself is NOT modified.
+
+
+def _cavity_plan_rel(x: float, y: float, pocket: dict, eps: float = 0.02) -> str:
+    """IN / ON / OUT of one pocket cavity's plan cross-section."""
+    hx, hy = pocket_half_xy(pocket)
+    px, py = x - pocket["x_position"], y
+    if pocket["shape"] == "circle":
+        d = math.hypot(px, py)
+        return "ON" if abs(d - hx) <= eps else ("IN" if d < hx - eps else "OUT")
+    m = max(abs(px) - hx, abs(py) - hy)
+    return "ON" if abs(m) <= eps else ("IN" if m < -eps else "OUT")
+
+
+def _web_solids(spec: dict, builder_module) -> list:
+    """The X-web solids exactly as the model builds them (its own helpers)."""
+    dims = spec["dimensions"]
+    leg_h = dims["leg_height"]
+    top_z = leg_h + dims["height"]
+    targets = set(fill_targets(spec))
+    webs = []
+    for p in spec["features"]["pockets"]:
+        if p["id"] not in targets:
+            continue
+        floor_z = top_z - p["depth"]
+        remaining = floor_z - leg_h
+        webs += [(p["id"], w) for w in builder_module._x_ribs(
+            p, spec["features"]["x_fill"]["rib_width"], remaining,
+            (leg_h + floor_z) / 2,
+            rib_len=builder_module._pocket_span(p)
+            + 2 * spec["features"]["x_fill"].get("rib_embed", 2))]
+    return webs
+
+
+def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
+    """Split the part's edges into (keep, suppress) web classes.
+
+    Web-related = every sampled point lies on/in a web solid, rebuilt from
+    the spec with the model's own helpers so the classification cannot drift
+    from the model. Kept: horizontal edges on the webs' top/bottom faces with
+    a point strictly inside the pocket cavity and none outside it — the
+    void-facing floor and bottom chords. Suppressed: embedded rib ends, wall
+    junctions, web-web crossing seams and wall arcs — edges of homogeneous
+    material. Non-web edges (outlines, silhouettes, rims, legs) stay.
+    """
+    from OCP.BRepClass3d import BRepClass3d_SolidClassifier
+    from OCP.gp import gp_Pnt
+    from OCP.TopAbs import TopAbs_State
+    on_in = (TopAbs_State.TopAbs_ON, TopAbs_State.TopAbs_IN)
+    dims = spec["dimensions"]
+    leg_h = dims["leg_height"]
+    top_z = leg_h + dims["height"]
+    pockets = {p["id"]: p for p in spec["features"]["pockets"]}
+    webs = _web_solids(spec, builder_module)
+    web_bbs = [(pid, w.bounding_box()) for pid, w in webs]
+    # Seam edges (a cylindrical face meeting itself) are modeling artifacts,
+    # not part edges — they must never serve as the "real edge" that shields
+    # a false web edge from suppression. A cylinder's only straight edges are
+    # its seams, so seams are keyed geometrically from the cylindrical faces.
+    def _line_key(e):
+        a, b = e @ 0, e @ 1
+        pa = (round(a.X, 4), round(a.Y, 4), round(a.Z, 4))
+        pb = (round(b.X, 4), round(b.Y, 4), round(b.Z, 4))
+        return (pa, pb) if pa <= pb else (pb, pa)
+
+    seam_keys = set()
+    for f in part.faces():
+        if f.geom_type != GeomType.CYLINDER:
+            continue
+        for fe in f.edges():
+            if fe.geom_type == GeomType.LINE:
+                seam_keys.add(_line_key(fe))
+    edges = list(part.edges())
+    seam_ids = {id(e) for e in edges
+                if e.geom_type == GeomType.LINE and _line_key(e) in seam_keys}
+    keep, suppress, others = [], [], []
+    for e in edges:
+        bb = e.bounding_box()
+        pts = [e @ (i / (n_samples - 1)) for i in range(n_samples)]
+        hit = None
+        for (pid, w), (_, wb) in zip(webs, web_bbs):
+            if (bb.max.X < wb.min.X - 0.5 or bb.min.X > wb.max.X + 0.5
+                    or bb.max.Y < wb.min.Y - 0.5 or bb.min.Y > wb.max.Y + 0.5
+                    or bb.max.Z < wb.min.Z - 0.5 or bb.min.Z > wb.max.Z + 0.5):
+                continue
+            if all(BRepClass3d_SolidClassifier(
+                    w.wrapped, gp_Pnt(pt.X, pt.Y, pt.Z), 1e-7).State() in on_in
+                    for pt in pts):
+                hit = pid
+                break
+        if hit is None:
+            if id(e) not in seam_ids:
+                others.append(e)
+            continue
+        p = pockets[hit]
+        rels = [_cavity_plan_rel(pt.X, pt.Y, p) for pt in pts]
+        zs = [pt.Z for pt in pts]
+        floor_z = top_z - p["depth"]
+        horizontal = max(zs) - min(zs) <= 1e-6
+        at_face = any(abs(z - leg_h) <= 1e-6 or abs(z - floor_z) <= 1e-6 for z in zs)
+        void_facing = "OUT" not in rels and "IN" in rels
+        (keep if (horizontal and at_face and void_facing) else suppress).append(e)
+    stats = {"web_keep": len(keep), "web_suppress": len(suppress),
+             "seam_edges": len(seam_ids)}
+    return keep, suppress, others, stats
+
+
+def _analytic_2d(edge, view: str, n: int = 33) -> list[list[tuple[float, float]]]:
+    """Orthographic 2D projection of a 3D edge in the view's coordinate frame.
+
+    Mirrors project_to_viewport's mapping the dimension code relies on:
+    top -> (X, Y), front -> (X, Z), end -> (±Y, Z). The end view's sign is
+    not resolvable from this symmetric part, so both variants are returned
+    and a match against either counts.
+    """
+    pts = [edge @ (i / (n - 1)) for i in range(n)]
+    if view == "top":
+        return [[(p.X, p.Y) for p in pts]]
+    if view == "front":
+        return [[(p.X, p.Z) for p in pts]]
+    return [[(p.Y, p.Z) for p in pts], [(-p.Y, p.Z) for p in pts]]
+
+
+def _point_near_polyline(q, poly, eps: float) -> bool:
+    best = math.inf
+    for (ax_, ay_), (bx, by) in zip(poly, poly[1:]):
+        dx, dy = bx - ax_, by - ay_
+        l2 = dx * dx + dy * dy
+        t = 0.0 if l2 == 0 else max(0.0, min(1.0, ((q[0] - ax_) * dx
+                                                   + (q[1] - ay_) * dy) / l2))
+        best = min(best, math.hypot(q[0] - (ax_ + t * dx), q[1] - (ay_ + t * dy)))
+        if best < eps:
+            return True
+    return False
+
+
+def _matches_suppressed(proj_edge, polys, eps: float = 0.05, n: int = 15) -> bool:
+    """True when every sample of the projected edge lies on some polyline."""
+    pp = [(v.X, v.Y) for v in (proj_edge @ (i / (n - 1)) for i in range(n))]
+    return any(all(_point_near_polyline(q, poly, eps) for q in pp) for poly in polys)
+
+
+def suppress_false_rib_edges(views, part, spec: dict, builder_module):
+    """Filter projected views: drop edges whose 3D source is a false web edge.
+
+    The true model's projection is filtered, not re-projected from a modified
+    copy — HLR visibility stays exactly as the model dictates; only edges of
+    homogeneous material disappear. A projected edge is dropped when every
+    sample lies on the analytic orthographic projection of a suppressed 3D
+    edge (bbox prefilter + point-to-polyline match).
+    """
+    keep3d, supp3d, others3d, stats = classify_rib_edges(part, spec, builder_module)
+    others3d = keep3d + others3d
+    filtered, per_view = {}, {}
+    for view, (vis, hid) in views.items():
+        supp_polys = [poly for e in supp3d for poly in _analytic_2d(e, view)]
+        other_polys = [poly for e in others3d for poly in _analytic_2d(e, view)]
+
+        def _boxes(polys):
+            out = []
+            for poly in polys:
+                xs = [q[0] for q in poly]
+                ys = [q[1] for q in poly]
+                out.append((min(xs), max(xs), min(ys), max(ys)))
+            return out
+
+        supp_boxes, other_boxes = _boxes(supp_polys), _boxes(other_polys)
+
+        def dropped(e, _sp=supp_polys, _sb=supp_boxes,
+                    _op=other_polys, _ob=other_boxes):
+            b = e.bounding_box()
+            hit = False
+            for polys, boxes in ((_sp, _sb),):
+                for poly, (x0, x1, y0, y1) in zip(polys, boxes):
+                    if (b.max.X < x0 - 0.2 or b.min.X > x1 + 0.2
+                            or b.max.Y < y0 - 0.2 or b.min.Y > y1 + 0.2):
+                        continue
+                    if _matches_suppressed(e, [poly]):
+                        hit = True
+                        break
+            if not hit:
+                return False
+            # a false edge coinciding in 2D with a real edge (e.g. a wall
+            # junction under the pocket silhouette) cannot be told apart
+            # after projection — it is invisible there, so it stays
+            for poly, (x0, x1, y0, y1) in zip(_op, _ob):
+                if (b.max.X < x0 - 0.2 or b.min.X > x1 + 0.2
+                        or b.max.Y < y0 - 0.2 or b.min.Y > y1 + 0.2):
+                    continue
+                if _matches_suppressed(e, [poly]):
+                    return False
+            return True
+
+        nv = [e for e in vis if not dropped(e)]
+        nh = [e for e in hid if not dropped(e)]
+        per_view[view] = {"dropped_visible": len(vis) - len(nv),
+                          "dropped_hidden": len(hid) - len(nh)}
+        filtered[view] = (nv, nh)
+    return filtered, {"web_edges": stats, "per_view": per_view}
+
+
+def project_drawing_views(part, spec: dict, builder_module):
+    """Raw projection + false-rib-edge suppression = the views as drawn."""
+    views = project_views(part, spec["dimensions"])
+    return suppress_false_rib_edges(views, part, spec, builder_module)
 
 
 # ---------------------------------------------------------------- probes
@@ -710,10 +928,11 @@ def main() -> None:
     out_prefix = (Path(sys.argv[2]) if len(sys.argv) > 2
                   else spec_path.parent / "visuals" / "drawing")
     spec = yaml.safe_load(spec_path.read_text(encoding="utf-8"))
-    part = load_builder(spec_path)(spec)
+    module = load_model_module(spec_path)
+    part = module.build(spec)
     dims = spec["dimensions"]
 
-    views = project_views(part, dims)
+    views, suppression = project_drawing_views(part, spec, module)
     probes = probe_views(views, spec)
 
     fig = plt.figure(figsize=(11.69, 8.27), dpi=150)  # A4 landscape
@@ -756,6 +975,13 @@ def main() -> None:
 
     manifest = build_manifest(views, probes, spec, spec_path)
     manifest["annotations"]["drawn_tags"] = drawn
+    manifest["rib_edge_suppression"] = {
+        "rule": ("of the web-related edges only the void-facing floor/bottom "
+                 "chords are drawn; embedded rib ends, wall junctions, "
+                 "web-web crossing seams and wall arcs are edges of "
+                 "homogeneous material and ISO 128 does not draw them"),
+        **suppression,
+    }
 
     violations = frame_collision_violations(fig, frame_ax)
     for v in violations:

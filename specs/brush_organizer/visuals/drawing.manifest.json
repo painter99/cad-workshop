@@ -26,15 +26,15 @@
   "views": {
     "top": {
       "visible_edges": 64,
-      "hidden_edges": 120
+      "hidden_edges": 104
     },
     "front": {
       "visible_edges": 10,
-      "hidden_edges": 270
+      "hidden_edges": 198
     },
     "end": {
       "visible_edges": 12,
-      "hidden_edges": 288
+      "hidden_edges": 216
     }
   },
   "probes": {
@@ -213,6 +213,28 @@
         "total_height",
         "width"
       ]
+    }
+  },
+  "rib_edge_suppression": {
+    "rule": "of the web-related edges only the void-facing floor/bottom chords are drawn; embedded rib ends, wall junctions, web-web crossing seams and wall arcs are edges of homogeneous material and ISO 128 does not draw them",
+    "web_edges": {
+      "web_keep": 96,
+      "web_suppress": 104,
+      "seam_edges": 40
+    },
+    "per_view": {
+      "top": {
+        "dropped_visible": 0,
+        "dropped_hidden": 16
+      },
+      "front": {
+        "dropped_visible": 0,
+        "dropped_hidden": 72
+      },
+      "end": {
+        "dropped_visible": 0,
+        "dropped_hidden": 72
+      }
     }
   }
 }
