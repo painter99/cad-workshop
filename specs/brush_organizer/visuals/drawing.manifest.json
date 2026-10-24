@@ -20,21 +20,21 @@
   "line_styles": {
     "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
     "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
-    "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow",
+    "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow; pocket centre crosses are 6 mm, inside the opening (owner 2026-10-24) — below one dash period they render as a continuous narrow cross",
     "dimensions": "ISO 128-24 type 01.1, continuous narrow"
   },
   "views": {
     "top": {
       "visible_edges": 64,
-      "hidden_edges": 104
+      "hidden_edges": 120
     },
     "front": {
       "visible_edges": 10,
-      "hidden_edges": 198
+      "hidden_edges": 206
     },
     "end": {
       "visible_edges": 12,
-      "hidden_edges": 216
+      "hidden_edges": 224
     }
   },
   "probes": {
@@ -216,7 +216,7 @@
     }
   },
   "rib_edge_suppression": {
-    "rule": "of the web-related edges only the void-facing floor/bottom chords are drawn; embedded rib ends, wall junctions, web-web crossing seams and wall arcs are edges of homogeneous material and ISO 128 does not draw them",
+    "rule": "web-related edges of homogeneous material are dropped per view: a suppressed edge is dropped only where its projection lies strictly inside its pocket's outline, or wholly in the walls (embedded rib ends); on the outline it survives, because there it is the pocket silhouette reaching the block bottom (owner 2026-10-24). Void-facing floor/bottom chords are kept in every view",
     "web_edges": {
       "web_keep": 96,
       "web_suppress": 104,
@@ -225,15 +225,15 @@
     "per_view": {
       "top": {
         "dropped_visible": 0,
-        "dropped_hidden": 16
+        "dropped_hidden": 0
       },
       "front": {
         "dropped_visible": 0,
-        "dropped_hidden": 72
+        "dropped_hidden": 64
       },
       "end": {
         "dropped_visible": 0,
-        "dropped_hidden": 72
+        "dropped_hidden": 64
       }
     }
   }

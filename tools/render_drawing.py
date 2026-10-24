@@ -319,9 +319,15 @@ def plot_edges(ax, edges, step: float = 1.0, max_points: int = 96, **style) -> i
 # web-web crossing seams. None of them is a transition of functional
 # surfaces — the material behind a pocket outline is homogeneous, and
 # ISO 128 draws no edges inside homogeneous material. Of all web-related
-# edges the drawing therefore keeps ONLY the void-facing floor/bottom
-# chords (the pocket floor line and the X seen through the opening) and
-# suppresses the rest. The model itself is NOT modified.
+# edges the drawing therefore keeps the void-facing floor/bottom chords
+# (the pocket floor line and the X seen through the opening) and drops the
+# rest PER VIEW: a suppressed edge is a drop candidate only where its
+# projection lies strictly inside its pocket's outline, or wholly in the
+# walls (embedded rib ends); where it lies ON the outline it survives,
+# because there it IS the pocket silhouette — the slot walls run unbroken
+# to the block bottom behind the embedded rib ends, and the projection has
+# no other edge to draw that segment from (owner finding 2026-10-24). The
+# model itself is NOT modified.
 
 
 def _cavity_plan_rel(x: float, y: float, pocket: dict, eps: float = 0.02) -> str:
@@ -333,6 +339,45 @@ def _cavity_plan_rel(x: float, y: float, pocket: dict, eps: float = 0.02) -> str
         return "ON" if abs(d - hx) <= eps else ("IN" if d < hx - eps else "OUT")
     m = max(abs(px) - hx, abs(py) - hy)
     return "ON" if abs(m) <= eps else ("IN" if m < -eps else "OUT")
+
+
+def _inside_cavity_view(pt: tuple[float, float], view: str, pocket: dict,
+                        leg_h: float, top_z: float, eps: float = 0.05) -> bool:
+    """Strictly inside the pocket's outline as seen in `view`.
+
+    top: the cavity's plan cross-section; front: (x, z); end: (±y, z) — the
+    end view's sign is irrelevant, the test is symmetric in y. A sample ON
+    the outline is NOT inside: an edge running along the outline (a wall
+    junction continuing the pocket silhouette below the X-web floor down to
+    the block bottom) survives there, while edges strictly inside (crowns,
+    crossing seams) or wholly in the walls (embedded rib ends) are droppable.
+    """
+    hx, hy = pocket_half_xy(pocket)
+    if view == "top":
+        return _cavity_plan_rel(pt[0], pt[1], pocket) == "IN"
+    if view == "front":
+        x, z = pt
+        return (abs(x - pocket["x_position"]) < hx - eps
+                and leg_h + eps < z < top_z - eps)
+    y, z = pt
+    return abs(y) < hy - eps and leg_h + eps < z < top_z - eps
+
+
+def _drop_candidate(edge, polys, view: str, pocket: dict, leg_h: float,
+                    top_z: float, n: int = 33) -> bool:
+    """Per-view drop decision for one suppressed 3D edge.
+
+    True when the edge's `view` projection (polys) has a sample strictly
+    inside the pocket's outline, or the edge lies wholly in the walls: every
+    PLAN sample (the edge's own 3D X/Y, not the projection) OUT of the
+    cavity — embedded rib ends are false in every view. Shared by the
+    renderer and the gate so the two cannot drift.
+    """
+    if any(_inside_cavity_view(q, view, pocket, leg_h, top_z)
+           for poly in polys for q in poly):
+        return True
+    pts = [edge @ (i / (n - 1)) for i in range(n)]
+    return all(_cavity_plan_rel(p.X, p.Y, pocket) == "OUT" for p in pts)
 
 
 def _web_solids(spec: dict, builder_module) -> list:
@@ -364,7 +409,9 @@ def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
     a point strictly inside the pocket cavity and none outside it — the
     void-facing floor and bottom chords. Suppressed: embedded rib ends, wall
     junctions, web-web crossing seams and wall arcs — edges of homogeneous
-    material. Non-web edges (outlines, silhouettes, rims, legs) stay.
+    material. Non-web edges (outlines, silhouettes, rims, legs) stay. The
+    per-view drop decision (strictly inside the pocket outline vs. on it)
+    happens later, in ``suppress_false_rib_edges``.
     """
     from OCP.BRepClass3d import BRepClass3d_SolidClassifier
     from OCP.gp import gp_Pnt
@@ -422,7 +469,7 @@ def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
         horizontal = max(zs) - min(zs) <= 1e-6
         at_face = any(abs(z - leg_h) <= 1e-6 or abs(z - floor_z) <= 1e-6 for z in zs)
         void_facing = "OUT" not in rels and "IN" in rels
-        (keep if (horizontal and at_face and void_facing) else suppress).append(e)
+        (keep if (horizontal and at_face and void_facing) else suppress).append((e, hit))
     stats = {"web_keep": len(keep), "web_suppress": len(suppress),
              "seam_edges": len(seam_ids)}
     return keep, suppress, others, stats
@@ -473,11 +520,21 @@ def suppress_false_rib_edges(views, part, spec: dict, builder_module):
     edge (bbox prefilter + point-to-polyline match).
     """
     keep3d, supp3d, others3d, stats = classify_rib_edges(part, spec, builder_module)
-    others3d = keep3d + others3d
+    pockets = {p["id"]: p for p in spec["features"]["pockets"]}
+    leg_h = spec["dimensions"]["leg_height"]
+    top_z = leg_h + spec["dimensions"]["height"]
+    real3d = [e for e, _ in keep3d] + others3d
     filtered, per_view = {}, {}
     for view, (vis, hid) in views.items():
-        supp_polys = [poly for e in supp3d for poly in _analytic_2d(e, view)]
-        other_polys = [poly for e in others3d for poly in _analytic_2d(e, view)]
+        supp_polys, survivor_polys = [], []
+        for e, pid in supp3d:
+            polys = _analytic_2d(e, view)
+            if _drop_candidate(e, polys, view, pockets[pid], leg_h, top_z):
+                supp_polys += polys
+            else:
+                survivor_polys += polys
+        other_polys = [poly for e in real3d for poly in _analytic_2d(e, view)]
+        other_polys += survivor_polys
 
         def _boxes(polys):
             out = []
@@ -664,7 +721,10 @@ def build_manifest(views: dict, probes: dict, spec: dict,
         "line_styles": {
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
             "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
-            "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow",
+            "centre_lines": ("ISO 128-24 type 04.1, long-dashed dotted narrow; "
+                             "pocket centre crosses are 6 mm, inside the "
+                             "opening (owner 2026-10-24) — below one dash "
+                             "period they render as a continuous narrow cross"),
             "dimensions": "ISO 128-24 type 01.1, continuous narrow",
         },
         "views": {
@@ -699,10 +759,12 @@ def draw_top(ax, view, spec: dict) -> list[str]:
     drawn: list[str] = []
     for p in pockets:
         cx, hx, hy = p["x_position"], *pocket_half_xy(p)
-        # ISO 128-24 type 04.1 centre lines: dash-dot cross through the
-        # centre, extending ~4 mm beyond the opening
-        ax.plot([cx - hx - 4, cx + hx + 4], [0, 0], **CENTERLINE)
-        ax.plot([cx, cx], [-hy - 4, hy + 4], **CENTERLINE)
+        # ISO 128-24 type 04.1 centre lines: short cross at the pocket
+        # centre, INSIDE the opening (owner 2026-10-24: no centre line may
+        # stick out of the opening). A 6 mm cross is below one 04.1 dash
+        # period, so it renders as a continuous narrow cross.
+        ax.plot([cx - 3, cx + 3], [0, 0], **CENTERLINE)
+        ax.plot([cx, cx], [-3, 3], **CENTERLINE)
         leader(ax, (cx + hx * 0.7, hy * 0.7), (cx, W / 2 + 14), pocket_label(p))
     note = fill_note(feats.get("x_fill"))
     if note:
@@ -976,10 +1038,13 @@ def main() -> None:
     manifest = build_manifest(views, probes, spec, spec_path)
     manifest["annotations"]["drawn_tags"] = drawn
     manifest["rib_edge_suppression"] = {
-        "rule": ("of the web-related edges only the void-facing floor/bottom "
-                 "chords are drawn; embedded rib ends, wall junctions, "
-                 "web-web crossing seams and wall arcs are edges of "
-                 "homogeneous material and ISO 128 does not draw them"),
+        "rule": ("web-related edges of homogeneous material are dropped per "
+                 "view: a suppressed edge is dropped only where its "
+                 "projection lies strictly inside its pocket's outline, or "
+                 "wholly in the walls (embedded rib ends); on the outline it "
+                 "survives, because there it is the pocket silhouette "
+                 "reaching the block bottom (owner 2026-10-24). Void-facing "
+                 "floor/bottom chords are kept in every view"),
         **suppression,
     }
 

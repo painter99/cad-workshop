@@ -17,6 +17,8 @@ import models.brush_organizer
 from models.brush_organizer import build, load_spec
 from tools.render_drawing import (
     _analytic_2d,
+    _drop_candidate,
+    _inside_cavity_view,
     _matches_suppressed,
     build_manifest,
     classify_rib_edges,
@@ -46,8 +48,8 @@ def gate(spec):
 @pytest.fixture(scope="module")
 def rib_split(spec):
     part = build(spec)
-    _keep, supp, others, _stats = classify_rib_edges(part, spec, models.brush_organizer)
-    return supp, _keep + others
+    keep, supp, others, _stats = classify_rib_edges(part, spec, models.brush_organizer)
+    return supp, [e for e, _ in keep] + others
 
 
 def test_view_outlines_match_spec(gate):
@@ -129,16 +131,28 @@ def test_manifest_shape_and_annotations(gate, spec):
 # ---------- false rib-edge suppression (owner findings 2026-10-23/24) ----------
 
 
-def test_false_rib_edges_fully_suppressed(gate, rib_split):
+def test_false_rib_edges_fully_suppressed(gate, rib_split, spec):
     """Every surviving projected edge that still matches a suppressed false
     web edge must be 2D-covered by a real edge as well (coincident under
-    projection, e.g. a wall junction under the pocket silhouette) — the
-    drawing contains no false-edge-only geometry."""
+    projection) — the drawing contains no false-edge-only geometry. The
+    per-view drop rule is mirrored exactly: a suppressed edge is a drop
+    candidate only strictly inside its pocket's outline (or wholly in the
+    walls); on the outline it is a silhouette survivor and joins the shield."""
     views, _, _ = gate
     supp3d, real3d = rib_split
+    pockets = {p["id"]: p for p in spec["features"]["pockets"]}
+    leg_h = spec["dimensions"]["leg_height"]
+    top_z = leg_h + spec["dimensions"]["height"]
     for view, (vis, hid) in views.items():
-        supp_polys = [poly for e in supp3d for poly in _analytic_2d(e, view)]
+        supp_polys, survivor_polys = [], []
+        for e, pid in supp3d:
+            polys = _analytic_2d(e, view)
+            if _drop_candidate(e, polys, view, pockets[pid], leg_h, top_z):
+                supp_polys += polys
+            else:
+                survivor_polys += polys
         real_polys = [poly for e in real3d for poly in _analytic_2d(e, view)]
+        real_polys += survivor_polys
         for lst in (vis, hid):
             for e in lst:
                 if _matches_suppressed(e, supp_polys):
@@ -175,16 +189,15 @@ def test_floor_lines_survive_in_front_and_end(gate, spec):
 
 
 def test_pocket_silhouettes_span_full_depth(gate, spec):
-    """The pocket outline must span the pocket's depth region: from the
-    pocket floor to the top face. (Below the floor the slot walls are
-    interrupted by the webs — their junction edges are suppressed as
-    homogeneous-material edges; the circle walls are not interrupted and
-    may span lower, which the coverage test accepts.)"""
+    """The pocket outline must span the full void: from the block bottom
+    (leg_h) to the top face — every pocket is a through-void with an X-web
+    floor, so its silhouette may not stop at the floor line (owner finding
+    2026-10-24: the slot silhouettes must be drawn down to the block
+    bottom)."""
     views, _, _ = gate
     leg_h = spec["dimensions"]["leg_height"]
     top_z = leg_h + spec["dimensions"]["height"]
     for p in spec["features"]["pockets"]:
-        floor_z = top_z - p["depth"]
         hx, hy = pocket_half_xy(p)
         for view in ("front", "end"):
             segs = []
@@ -200,7 +213,7 @@ def test_pocket_silhouettes_span_full_depth(gate, spec):
                     continue
                 segs.append((b.min.Y, b.max.Y))
             segs.sort()
-            cov = floor_z
+            cov = leg_h
             for lo, hi in segs:
                 if lo > cov + 0.05:
                     break
