@@ -1,0 +1,64 @@
+part: hub_flange
+description: >
+  Hub flange, 6-bolt: a Ø120x12 mm flange plate with six Ø11 mm bolt holes
+  equally spaced on a Ø90 mm PCD, a concentric Ø50x18 mm hub on one face, and
+  a Ø25 mm bore through the whole part with an 8 mm keyway. Transcribed from a
+  public-domain (CC0) engineering drawing (Innerscene Drawing Library, "Hub
+  flange drawing (dimensioned)", scale 1:1, mm; the input file stays private by
+  owner decision — only generated outputs go to the repository). Owner
+  approvals (2026-10-28): keyway 8x3.3 mm per DIN 6885 (key 8x7, hub side
+  t2=3.3; the source drawing does not dimension the keyway — the size was
+  measured from the drawing proportions and offered as a veto question); hub
+  on +Z; plain bolt holes (no counterbore/countersink); sharp edges (no
+  chamfers/fillets on the drawing). Third part: the first with a bolt-circle
+  pattern, a through-bore and a keyway.
+units: mm
+drawing: generated   # dimensioned drawing generated from this spec (visuals/drawing.png)
+
+dimensions:
+  length: 120            # X envelope = flange OD (round part: length == width)
+  width: 120             # Y envelope = flange OD
+  height: 30             # total: plate 12 + hub 18
+  flange_diameter: 120
+  flange_thickness: 12
+  hub_diameter: 50
+  hub_length: 18
+  bore_diameter: 25
+  keyway_width: 8
+  keyway_depth: 3.3      # DIN 6885 for an 8 mm key (owner-approved 2026-10-28)
+  pcd_diameter: 90
+  bolt_hole_diameter: 11
+
+features:
+  flange_plate:
+    diameter: 120
+    thickness: 12
+  hub:
+    diameter: 50
+    length: 18
+    side: top            # +Z; plate at the bottom (owner-approved)
+  bore:
+    diameter: 25
+    through: true        # through plate + hub (owner-approved)
+    keyway:
+      width: 8
+      depth: 3.3
+      angle_deg: 90      # +Y (12 o'clock in the top view), as on the source drawing
+  bolt_holes:
+    count: 6
+    diameter: 11
+    pcd_diameter: 90
+    pattern: equally_spaced
+    start_angle_deg: 90  # hole #1 at 12 o'clock, as on the source drawing
+    through: flange_plate
+    plain: true          # no counterbore/countersink (owner-approved)
+
+tolerance: 0.2
+uncertain: []          # the keyway size was the open item; resolved by the owner (DIN 6885 8x3.3)
+assumptions:           # interpretations offered to the owner and approved 2026-10-28
+  - "keyway 8 x 3.3 mm per DIN 6885 (key 8x7, hub t2=3.3); measured on the
+    drawing as ~8.0 x ~3.5 (not dimensioned there) - VETO resolved"
+  - hub on +Z (top), plate at the bottom - VETO resolved
+  - bolt holes plain Ø11 through, no counterbore/countersink - VETO resolved
+  - bore Ø25 through-all (plate + hub, 30 mm) - VETO resolved
+  - sharp edges, no chamfers/fillets (none on the drawing) - VETO resolved
