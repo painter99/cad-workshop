@@ -156,6 +156,44 @@ cylinder. The drawing gate follows the same rule: the bore, keyway and hub
 lines are identified in the projected views by position and span
 (`_vertical_lines`), not by face identity.
 
+## 12. Dimension label placement: clearance is not attachment, and the third defect of a class becomes a gate
+
+The hub flange review (2026-10-28) spent four correction rounds on one element
+class — the number of a dimension — and each round exposed a different rule:
+
+1. **Text must clear projected geometry.** Numbers touching outlines (Ø25,
+   28.3, Ø90) were flagged by the owner. Fixed, and now guarded mechanically:
+   `text_geometry_collisions` requires every text to sit ≥ 2 mm from projected
+   geometry (annotation arrows are deliberately exempt — leaders are supposed
+   to touch the geometry they point at).
+2. **Narrow dimensions need the ISO treatment.** A 6 mm span cannot fit
+   arrows and a number between its extension lines. ISO 129-1:2018 §5.3:
+   arrows outside and reversed, extension lines extended, the label sits on
+   the dimension line's axis beyond the extension line
+   (`_dim_h_narrow` / `_dim_v_narrow`).
+3. **Clearance is not attachment.** The first narrow fix parked the number
+   3 mm beside the dimension axis — mechanically clean, visually detached
+   ("looks like it has nothing to do with the dimension"). A placement fix
+   must preserve the label's visual attachment to its dimension, not only its
+   distances; the gate cannot judge attachment, so the whole dimension is
+   reviewed in context, not just the number.
+4. **Rotated text: box center is not ink center.** Digits sit on their
+   baseline, so a 90°-rotated label's ink hangs ~0.6 mm to one side even when
+   its bounding box is centered on the axis (matplotlib aligns ha/va on the
+   rotated box). The renderer compensates with a measured constant
+   (`INK_BIAS_V`); a pixel probe confirms the ink center sits on the axis
+   (0.0 mm off).
+
+After the third defect of the same class, placement became a mechanical gate:
+`narrow_label_violations` measures every registered narrow label on the render
+(axis-centered including ink compensation, outside the arrow zone) and fails
+the build on drift; all of the day's defective placements now fail it as unit
+tests, and the manifest records `narrow_label_ok`. A blanket text-vs-
+annotation clearance gate was considered and rejected: it would also flag the
+one approved label that sits close to its own arrowheads by design, and
+per-dimension exceptions would rot the gate — per-class gates with unit tests
+remain the pattern.
+
 ## Meta-lesson: correction rounds are cheap when the spec is the truth
 
 M3 went through three correction rounds (pocket re-read, leg placement, rib
