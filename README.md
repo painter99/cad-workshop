@@ -2,6 +2,8 @@
 
 Headless parametric CAD workspace: models are built from written specs, verified by automated tests, and reviewed through generated previews. Built on [build123d](https://github.com/gumyr/build123d) (Python + OpenCascade), designed for AI-assisted modeling where the machine — not memory — proves correctness.
 
+AI coding agents: start with [AGENTS.md](AGENTS.md) — the agent-facing entry point (precedence rule, repository map, binding rules, boundaries).
+
 ![Brush organizer — Blender render](specs/brush_organizer/visuals/render_iso.png)
 ![Brush organizer — dimensioned drawing (views projected from the model, dimensions from spec.yaml)](specs/brush_organizer/visuals/drawing.png)
 
