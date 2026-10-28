@@ -17,7 +17,8 @@
     "frame_clearance": "every drawn element ≥2 mm inside the frame (mechanical gate)",
     "text_clearance": "dimension/label texts ≥2 mm from the projected geometry (mechanical gate; leader arrows excluded — they point at geometry by design)",
     "frame_clearance_ok": true,
-    "text_collision_ok": true
+    "text_collision_ok": true,
+    "narrow_label_ok": true
   },
   "line_styles": {
     "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",

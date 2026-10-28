@@ -126,6 +126,15 @@ identifies the same features in the projected views by position and span
      a +1.2 model mm compensation centres the ink (measured on the
      render). Lesson: a placement fix has to preserve the
      label's visual attachment to its dimension, not only clearances.
+  6. Recurrence gate for the whole placement class (owner asked for code
+     so it cannot happen again): the
+     narrow helpers register their labels and `narrow_label_violations`
+     verifies each one on the rendered figure — box centre on the dim
+     line axis (v-kind: with the measured ink compensation; h-kind: on
+     the span midpoint) and beyond the dimension's own arrowhead zone
+     (v-kind) / above the dim line (h-kind); manifest
+     `sheet.narrow_label_ok`. The squeezed, detached and ink-off-axis
+     placements of the 12 mm label all fail this gate (unit-tested).
 - Manifest for a part without pockets: `pocket_labels: []`,
   `schedule_rows: 0` (no pocket table); probes carry a `flange` section.
 - Seam edges (cylinder closure artifacts) follow the existing rule: dropped
@@ -149,5 +158,9 @@ key.
 
 ## Owner acceptance
 
-- Awaiting owner review of the drawing (`specs/hub_flange/visuals/drawing.png`)
-  and the previews; verdict to be recorded here.
+- Accepted by the owner on 2026-10-28 after zoom review of the drawing
+  and the previews (rounds 3–6: dimension numbers clear of the part
+  outlines — gate `text_geometry_collisions`; the 12 mm plate-thickness
+  label re-placed per the ISO 129-1:2018 narrow-span treatment, in line
+  with the dimension, ink centred on the axis — gate
+  `narrow_label_violations`). Verdict: GO push + merge per round.

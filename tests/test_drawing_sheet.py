@@ -15,11 +15,13 @@ from models.brush_organizer import build, load_spec
 from tools.render_drawing import (
     FONT_NAME,
     FONT_PATH,
+    INK_BIAS_V,
     _snap_data,
     build_manifest,
     closed_dash_offset,
     draw_title_block,
     frame_collision_violations,
+    narrow_label_violations,
     probe_views,
     project_views,
     small_circle_solid,
@@ -173,6 +175,78 @@ def test_text_geometry_collisions_catches_and_clears():
         assert any("'ON'" in v for v in violations), violations
         assert not any("'CLEAR'" in v or "'LEADER'" in v
                        for v in violations), violations
+    finally:
+        plt.close(fig)
+
+
+def test_narrow_label_gate_passes_verified_placement_and_catches_drift():
+    """The 12 mm plate-thickness label saga as a gate: the verified
+    placement (box centre on the dim line axis + ink bias, beyond the
+    arrowhead tail) passes; the detached (3 mm off-axis) and the squeezed
+    (inside the arrow zone) placements fail."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure(figsize=(6, 6), dpi=150)
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(-10, 30)
+    good = ax.text(INK_BIAS_V, 21, "12", fontsize=10, rotation=90,
+                   ha="center", va="bottom")
+    off_axis = ax.text(3 + INK_BIAS_V, 21, "12", fontsize=10, rotation=90,
+                       ha="center", va="bottom")
+    squeezed = ax.text(INK_BIAS_V, 18, "12", fontsize=10, rotation=90,
+                       ha="center", va="bottom")
+    records = [
+        {"ax": ax, "text": good, "kind": "v", "axis": 0.0,
+         "line_pos": 12.0, "arrow_far": 17.0},
+        {"ax": ax, "text": off_axis, "kind": "v", "axis": 0.0,
+         "line_pos": 12.0, "arrow_far": 17.0},
+        {"ax": ax, "text": squeezed, "kind": "v", "axis": 0.0,
+         "line_pos": 12.0, "arrow_far": 17.0},
+    ]
+    fig.canvas.draw()
+    try:
+        violations = narrow_label_violations(fig, records)
+        assert len(violations) == 2, violations
+        assert "off the dim line axis" in violations[0], violations
+        assert "inside the arrow" in violations[1], violations
+    finally:
+        plt.close(fig)
+
+
+def test_narrow_label_gate_horizontal_label_centered_above_line():
+    """h-kind convention (the keyway 8): the label centred on the span
+    midpoint and above the dim line; an off-mid or on-the-line placement
+    fails."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    fig = plt.figure(figsize=(6, 6), dpi=150)
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(-10, 30)
+    good = ax.text(0, 2, "8", fontsize=10, ha="center", va="bottom")
+    off_mid = ax.text(2, 2, "8", fontsize=10, ha="center", va="bottom")
+    on_line = ax.text(0, 0.5, "8", fontsize=10, ha="center", va="bottom")
+    records = [
+        {"ax": ax, "text": good, "kind": "h", "axis": 0.0,
+         "line_pos": 0.0, "arrow_far": None},
+        {"ax": ax, "text": off_mid, "kind": "h", "axis": 0.0,
+         "line_pos": 0.0, "arrow_far": None},
+        {"ax": ax, "text": on_line, "kind": "h", "axis": 0.0,
+         "line_pos": 0.0, "arrow_far": None},
+    ]
+    fig.canvas.draw()
+    try:
+        violations = narrow_label_violations(fig, records)
+        assert len(violations) == 2, violations
+        assert "off the dim line midpoint" in violations[0], violations
+        assert "too close to the dim line" in violations[1], violations
     finally:
         plt.close(fig)
 
