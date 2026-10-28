@@ -261,8 +261,9 @@ def _dim_h_narrow(ax, x0, x1, y, text, ext0=None, ext1=None,
             continue
         d = 1 if y > ef else -1
         ax.plot([xf, xf], [ef + d * 2, y + d * 4], **DIMLINE)
-    ax.text((x0 + x1) / 2, y + offset, text, ha="center", va="bottom",
-            fontsize=10, color="#1a1a1a")
+    t = ax.text((x0 + x1) / 2, y + offset, text, ha="center", va="bottom",
+                fontsize=10, color="#1a1a1a")
+    _register_narrow_label(ax, t, "h", (x0 + x1) / 2, y, None)
 
 
 def _dim_v_narrow(ax, x, y0, y1, text, ext0=None, ext1=None,
@@ -290,11 +291,12 @@ def _dim_v_narrow(ax, x, y0, y1, text, ext0=None, ext1=None,
         d = 1 if x > ef else -1
         ax.plot([ef + d * 2, x + d * 4], [yf, yf], **DIMLINE)
     # a rotated digit label sits on the baseline, so its ink hangs ~0.6 mm
-    # left of the (exactly axis-centred) text box; +1.2 model mm recentres
+    # left of the (exactly axis-centred) text box; INK_BIAS_V recentres
     # the INK on the dim line axis (measured on the render, owner review
     # 2026-10-28: "nesedi presne na ose")
-    ax.text(x + 1.2, y1 + stub + 4, text, ha="center", va="bottom",
-            fontsize=10, rotation=90, color="#1a1a1a")
+    t = ax.text(x + INK_BIAS_V, y1 + stub + 4, text, ha="center",
+                va="bottom", fontsize=10, rotation=90, color="#1a1a1a")
+    _register_narrow_label(ax, t, "v", x, y1, y1 + stub)
 
 
 def _flange_dimension_plan(spec: dict) -> list[dict]:
@@ -1427,6 +1429,80 @@ def frame_collision_violations(fig, frame_ax) -> list[str]:
     return violations
 
 
+# ---------------------------------------------------------------- narrow dims
+#
+# Narrow-dim labels are placed by arithmetic inside the two helpers. The
+# 12 mm plate-thickness label went through three owner-flagged placements
+# in one day (squeezed between the arrowheads inside the span, then parked
+# 3 mm off the axis, then reading 0.6 mm off the axis because digits sit
+# on the baseline). The helpers register what they draw and
+# narrow_label_violations verifies the placement on the real render, so
+# the class cannot come back silently on a future part.
+
+_NARROW_LABELS: list[dict] = []
+INK_BIAS_V = 1.2  # model mm; recentres a rotated digit label's ink on the axis
+
+
+def _register_narrow_label(ax, text, kind: str, axis: float,
+                           line_pos: float, arrow_far: float | None) -> None:
+    """Record a narrow-dim label for narrow_label_violations.
+
+    kind "v": vertical dim line at x=`axis`, the label beyond the upper
+    extension line (`line_pos` = that line's y, `arrow_far` = the
+    arrowhead tail's y); kind "h": horizontal dim line at y=`line_pos`,
+    the label above it, centred on the span midpoint `axis`.
+    """
+    _NARROW_LABELS.append({"ax": ax, "text": text, "kind": kind,
+                           "axis": axis, "line_pos": line_pos,
+                           "arrow_far": arrow_far})
+
+
+def narrow_label_violations(fig, records: list[dict] | None = None) -> list[str]:
+    """Narrow-dim labels must sit in line with their dimension.
+
+    For every label the narrow helpers registered (or the `records`
+    given), measured on the rendered figure in data coordinates: the box
+    centre on the dim line axis (v-kind: axis + INK_BIAS_V, the measured
+    ink compensation; h-kind: the span midpoint) and beyond the
+    dimension's own arrowhead zone (v-kind) / above the dim line (h-kind).
+    Owner 2026-10-28: the detached and the ink-off-axis placements of the
+    12 mm label both fail here.
+    """
+    from matplotlib.text import Text
+    renderer = fig.canvas.get_renderer()
+    violations = []
+    for rec in (records if records is not None else _NARROW_LABELS):
+        t = rec["text"]
+        if (not isinstance(t, Text)
+                or not (t.get_text() or "").strip()
+                or not t.get_visible()):
+            continue
+        inv = rec["ax"].transData.inverted()
+        bb = t.get_window_extent(renderer=renderer)
+        (x0, y0), (x1, y1) = inv.transform([(bb.x0, bb.y0), (bb.x1, bb.y1)])
+        cx = (x0 + x1) / 2
+        label = t.get_text()
+        if rec["kind"] == "v":
+            if abs(cx - (rec["axis"] + INK_BIAS_V)) > 0.6:
+                violations.append(
+                    f"narrow label '{label}' centre x {cx:.1f} off the dim "
+                    f"line axis {rec['axis']:g} (+{INK_BIAS_V:g} ink bias)")
+            if y0 < rec["arrow_far"] + 2.0:
+                violations.append(
+                    f"narrow label '{label}' bottom y {y0:.1f} inside the "
+                    f"arrow/extension zone (arrow tail {rec['arrow_far']:g})")
+        else:
+            if abs(cx - rec["axis"]) > 0.6:
+                violations.append(
+                    f"narrow label '{label}' centre x {cx:.1f} off the dim "
+                    f"line midpoint {rec['axis']:g}")
+            if y0 < rec["line_pos"] + 1.5:
+                violations.append(
+                    f"narrow label '{label}' bottom y {y0:.1f} too close to "
+                    f"the dim line y {rec['line_pos']:g}")
+    return violations
+
+
 def text_geometry_collisions(fig, views: dict, view_axes: dict,
                              clearance: float = 2.0) -> list[str]:
     """Dimension/label texts must keep clearance from the projected geometry.
@@ -1509,6 +1585,7 @@ def main() -> None:
     ax_end = fig.add_axes([0.70, 0.12, 0.22, 0.32])
     ax_info = fig.add_axes([0.70, 0.47, 0.25, 0.40])
 
+    _NARROW_LABELS.clear()  # this render's registrations only
     drawn = {
         "top": draw_top(ax_top, views["top"], spec),
         "front": draw_front(ax_front, views["front"], spec),
@@ -1559,6 +1636,11 @@ def main() -> None:
     for v in text_violations:
         print(f"PROBE FAILED: {v}", file=sys.stderr)
     manifest["sheet"]["text_collision_ok"] = not text_violations
+
+    narrow_violations = narrow_label_violations(fig)
+    for v in narrow_violations:
+        print(f"PROBE FAILED: {v}", file=sys.stderr)
+    manifest["sheet"]["narrow_label_ok"] = not narrow_violations
 
     failed = [
         f"{pid}: opening" for pid, pr in probes["pockets"].items()
