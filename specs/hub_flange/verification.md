@@ -114,6 +114,18 @@ identifies the same features in the projected views by position and span
      (extension lines, arrowheads) is not mechanically gated — the text
      gate covers projected geometry only; it remains an owner zoom-review
      item.
+  5. The first `_dim_v_narrow` label placement parked the number sideways
+     (3 mm off the dim line axis) — mechanically clear of everything, but
+     visually detached from its dimension (owner: "a kilometre from the
+     dim line"). Corrected: the label sits IN LINE with the dimension —
+     on the dim line axis, above the upper extension line and its outside
+     arrowhead — mirroring the horizontal narrow label, which sits on the
+     axis above its line. The rotated label's ink is recentred on the
+     axis: digits sit on the baseline, so an exactly box-centred rotated
+     label reads ~0.6 mm left of the line (owner review 2026-10-28);
+     a +1.2 model mm compensation centres the ink (measured on the
+     render). Lesson: a placement fix has to preserve the
+     label's visual attachment to its dimension, not only clearances.
 - Manifest for a part without pockets: `pocket_labels: []`,
   `schedule_rows: 0` (no pocket table); probes carry a `flange` section.
 - Seam edges (cylinder closure artifacts) follow the existing rule: dropped
