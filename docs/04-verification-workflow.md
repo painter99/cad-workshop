@@ -1,4 +1,4 @@
-# Verification workflow: drawing → spec → model → report
+# Verification workflow: spec → model → drawing → tests → report
 
 ## Purpose
 
@@ -10,8 +10,9 @@ This document defines how a drawing or sketch becomes a verified model, and what
    and versioned — **unless the owner keeps it private** (hand sketches and
    prototype photos do not belong in a public repository by default). In the
    private-sketch case the spec's `drawing:` field is set to `generated`, and
-   a dimensioned drawing is generated from the approved spec instead
-   (`tools/render_drawing.py` → `specs/<part>/visuals/drawing.png/svg`), so
+   a dimensioned drawing is generated after the model builds (views projected
+   from the model, annotations from the spec; `tools/render_drawing.py` →
+   `specs/<part>/visuals/drawing.png/svg`), so
    the public repository still shows a professional, dimension-bearing
    artifact without exposing the sketch.
 2. Every dimension, tolerance, feature and note is transcribed into `specs/<part>/spec.yaml`.
@@ -21,20 +22,25 @@ This document defines how a drawing or sketch becomes a verified model, and what
 
 The transcription is reviewed against the drawing by a human. This gate exists because everything downstream (model, tests, report) inherits spec errors silently. Only after approval is the spec authoritative.
 
-## Step 2.5 — Spec visualization (drawing from the spec)
+## Step 2.5 — Spec visualization before modeling (superseded 2026-10-23)
 
-1. Generate the dimensioned drawing **from the approved spec**
-   (`tools/render_drawing.py` → `specs/<part>/visuals/drawing.png/svg`).
-2. A human compares this drawing against the original sketch **before
-   modeling starts**. The drawing shows the *interpretation* of the sketch;
-   any misread dimension is vetoed here — the cheapest correction point in
-   the whole loop (one parameter change, no re-modeling).
-3. When the sketch is private, this drawing also serves as the public,
-   dimension-bearing artifact of the part.
+This step belonged to the earlier workflow, where a dimensioned drawing was
+generated **from the spec** before modeling as a pre-model veto point. Since
+the drawing views are now true projections of the built model (see
+[01-workflow.md](01-workflow.md), stage 3, and
+[06-lessons-learned.md](06-lessons-learned.md), lesson 10), generating them
+before the model exists would mean hand-drawing the view geometry — the exact
+defect class lesson 10 removed. The pre-model veto point is the spec approval
+in Step 2; the drawing is generated after the model builds and is reviewed
+against the sketch then (Step 3). When the sketch is private, the generated
+drawing still serves as the public, dimension-bearing artifact of the part.
 
-## Step 3 — Modeling and testing
+## Step 3 — Modeling, drawing and testing
 
-The model reads the approved spec; the test suite asserts every dimension (see [03-testing.md](03-testing.md)).
+The model reads the approved spec. The dimensioned drawing is generated from
+the built model (views projected from the model, annotations from the spec)
+and checked by the drawing-completeness gate; the test suite asserts every
+dimension (see [03-testing.md](03-testing.md)).
 
 ## Step 4 — Preview before final build
 
