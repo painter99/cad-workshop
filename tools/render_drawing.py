@@ -266,16 +266,16 @@ def _dim_h_narrow(ax, x0, x1, y, text, ext0=None, ext1=None,
 
 
 def _dim_v_narrow(ax, x, y0, y1, text, ext0=None, ext1=None,
-                  stub: float = 5, offset: float = 6) -> None:
+                  stub: float = 5) -> None:
     """Vertical dimension too narrow for two inside arrowheads (ISO 129).
 
     Mirror of _dim_h_narrow: at 1:2 the arrowheads would overlap on spans
     under ~7 mm, so they sit OUTSIDE on short stubs past the extension
-    lines, pointing inward (ISO 129-1:2018 5.3). The label leaves the
-    narrow span entirely — above the upper extension line, on the far
-    side of the dimension line (ISO 129-1:2018 4.1.1: vertical text
-    reads from the right, above the line; owner 2026-10-28: the number
-    sat ~1 mm from the arrowheads inside a 6 mm span).
+    lines, pointing inward (ISO 129-1:2018 5.3). The label stays IN LINE
+    with the dimension — on the dim line axis, above the upper extension
+    line and its outside arrowhead, like the horizontal narrow label sits
+    above its line; a label parked sideways off the axis read as detached
+    from the dimension (owner 2026-10-28).
     """
     ax.plot([x, x], [y0, y1], **DIMLINE)
     ax.annotate("", xy=(x, y0), xytext=(x, y0 - stub),
@@ -289,7 +289,11 @@ def _dim_v_narrow(ax, x, y0, y1, text, ext0=None, ext1=None,
             continue
         d = 1 if x > ef else -1
         ax.plot([ef + d * 2, x + d * 4], [yf, yf], **DIMLINE)
-    ax.text(x - offset, y1 + 4, text, ha="right", va="bottom",
+    # a rotated digit label sits on the baseline, so its ink hangs ~0.6 mm
+    # left of the (exactly axis-centred) text box; +1.2 model mm recentres
+    # the INK on the dim line axis (measured on the render, owner review
+    # 2026-10-28: "nesedi presne na ose")
+    ax.text(x + 1.2, y1 + stub + 4, text, ha="center", va="bottom",
             fontsize=10, rotation=90, color="#1a1a1a")
 
 
