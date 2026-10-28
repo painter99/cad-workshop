@@ -265,6 +265,34 @@ def _dim_h_narrow(ax, x0, x1, y, text, ext0=None, ext1=None,
             fontsize=10, color="#1a1a1a")
 
 
+def _dim_v_narrow(ax, x, y0, y1, text, ext0=None, ext1=None,
+                  stub: float = 5, offset: float = 6) -> None:
+    """Vertical dimension too narrow for two inside arrowheads (ISO 129).
+
+    Mirror of _dim_h_narrow: at 1:2 the arrowheads would overlap on spans
+    under ~7 mm, so they sit OUTSIDE on short stubs past the extension
+    lines, pointing inward (ISO 129-1:2018 5.3). The label leaves the
+    narrow span entirely — above the upper extension line, on the far
+    side of the dimension line (ISO 129-1:2018 4.1.1: vertical text
+    reads from the right, above the line; owner 2026-10-28: the number
+    sat ~1 mm from the arrowheads inside a 6 mm span).
+    """
+    ax.plot([x, x], [y0, y1], **DIMLINE)
+    ax.annotate("", xy=(x, y0), xytext=(x, y0 - stub),
+                arrowprops=dict(arrowstyle="->", color="#1a1a1a", lw=1.0,
+                                shrinkA=0, shrinkB=0, mutation_scale=12))
+    ax.annotate("", xy=(x, y1), xytext=(x, y1 + stub),
+                arrowprops=dict(arrowstyle="->", color="#1a1a1a", lw=1.0,
+                                shrinkA=0, shrinkB=0, mutation_scale=12))
+    for yf, ef in ((y0, ext0), (y1, ext1)):
+        if ef is None:
+            continue
+        d = 1 if x > ef else -1
+        ax.plot([ef + d * 2, x + d * 4], [yf, yf], **DIMLINE)
+    ax.text(x - offset, y1 + 4, text, ha="right", va="bottom",
+            fontsize=10, rotation=90, color="#1a1a1a")
+
+
 def _flange_dimension_plan(spec: dict) -> list[dict]:
     """Dimension plan for the flange kind (round part: bolt circle + bore)."""
     dims = spec["dimensions"]
@@ -426,8 +454,8 @@ def _draw_front_flange(ax, view, spec: dict) -> list[str]:
     total = dims["height"]
     plan = {e["tag"]: e["text"] for e in dimension_plan(spec)
             if e["view"] == "front"}
-    dim_v(ax, -r_f - 14, 0, flange_t, plan["flange_thickness"],
-          offset=2, ext0=-r_f, ext1=-r_f)
+    _dim_v_narrow(ax, -r_f - 14, 0, flange_t, plan["flange_thickness"],
+                  ext0=-r_f, ext1=-r_f)
     dim_v(ax, r_hub + 14, flange_t, total, plan["hub_length"],
           ext0=r_hub, ext1=r_hub)
     dim_v(ax, r_f + 14, 0, total, plan["height"], ext0=r_f, ext1=r_f)

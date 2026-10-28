@@ -97,6 +97,23 @@ identifies the same features in the projected views by position and span
      out of the Ø120 outline, left-side vertical dim numbers on the far
      side of their dim line). The organizer drawing had the same
      rotated-text class on two dims and was re-rendered with the fix.
+  4. Owner re-review flagged the 12 mm plate-thickness number still close
+     to its arrowheads and extension lines (a 6 mm span at 1:2 leaves
+     ~1.2 mm margins) and asked whether ISO allows vertical-dim numbers
+     beside their dim lines (18, 30). Checked against ISO 129-1:2018
+     (preview PDF, clauses 4.1.1 and 5.3 + Figure 2): the general rule is
+     text above the dimension line, vertical text reading from the right;
+     the standard's own Figure 2 shows a vertical dim with the number on
+     the right of the dim line — the side away from the part contour — so
+     the 18/30 placement stays. The 12 got the narrow-span treatment
+     (`_dim_v_narrow`, mirror of `_dim_h_narrow`): arrowheads outside on
+     stubs past the extension lines (ISO 129-1:2018 5.3), the number moved
+     out of the span — above the upper extension line, on the far side of
+     the dim line, which for vertical text reading from the right is also
+     the literal "above the line" side. Text-vs-annotation clearance
+     (extension lines, arrowheads) is not mechanically gated — the text
+     gate covers projected geometry only; it remains an owner zoom-review
+     item.
 - Manifest for a part without pockets: `pocket_labels: []`,
   `schedule_rows: 0` (no pocket table); probes carry a `flange` section.
 - Seam edges (cylinder closure artifacts) follow the existing rule: dropped
