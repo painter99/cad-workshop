@@ -1,6 +1,6 @@
 # CAD Workshop
 
-Headless parametric CAD workspace: models are built from written specs, verified by automated tests, and reviewed through generated previews. Built on [build123d](https://github.com/gumyr/build123d) (Python + OpenCascade), designed for AI-assisted modeling where the machine — not memory — proves correctness.
+Headless parametric CAD framework: models are built from written specs, verified by automated tests, and reviewed through generated previews. Built on [build123d](https://github.com/gumyr/build123d) (Python + OpenCascade), designed for AI-assisted modeling where the machine — not memory — proves correctness.
 
 AI coding agents: start with [AGENTS.md](AGENTS.md) — the agent-facing entry point (precedence rule, repository map, binding rules, boundaries).
 
