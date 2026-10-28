@@ -136,6 +136,47 @@ def test_frame_collision_violations_catches_lines_and_patches():
     assert len(viol) >= 2, f"gate must catch line+patch collisions, got {viol}"
 
 
+def test_text_geometry_collisions_catches_and_clears():
+    """The text-geometry clearance gate: a text ON a line violates, a text
+    2 mm clear of it does not."""
+    import matplotlib
+
+    matplotlib.use("Agg")
+    import matplotlib.pyplot as plt
+
+    from tools.render_drawing import text_geometry_collisions
+
+    class FakeV:
+
+        def __init__(self, x, y):
+            self.X, self.Y = x, y
+
+    class FakeEdge:  # horizontal 10 mm line at y = 0
+        length = 10.0
+
+        def __matmul__(self, t):
+            return FakeV(-5.0 + 10.0 * t, 0.0)
+
+    fig = plt.figure(figsize=(4, 3), dpi=100)
+    ax = fig.add_axes([0.1, 0.1, 0.8, 0.8])
+    ax.set_xlim(-10, 10)
+    ax.set_ylim(-10, 10)
+    fig.canvas.draw()
+    ax.text(0, 0, "ON", ha="center", va="center")
+    ax.text(0, 5, "CLEAR", ha="center", va="center")
+    # a leader whose ARROW touches the line: judged on the text alone
+    ax.annotate("LEADER", xy=(0, 0), xytext=(6, 5),
+                arrowprops=dict(arrowstyle="->"))
+    try:
+        violations = text_geometry_collisions(
+            fig, {"top": ([FakeEdge()], [])}, {"top": ax})
+        assert any("'ON'" in v for v in violations), violations
+        assert not any("'CLEAR'" in v or "'LEADER'" in v
+                       for v in violations), violations
+    finally:
+        plt.close(fig)
+
+
 def test_snap_data_lands_on_pixel_grid():
     """_snap_data must return coordinates that matplotlib maps back to whole
     render pixels — half-pixel positions are what rendered the title block's

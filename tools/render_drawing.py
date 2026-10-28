@@ -388,10 +388,10 @@ def _draw_top_flange(ax, view, spec: dict) -> list[str]:
            (-r_f - 24, -r_f * 0.45), plan["flange_diameter"])
     leader(ax, (r_hub * math.cos(math.radians(30)),
                 r_hub * math.sin(math.radians(30))),
-           (r_hub + 11, r_hub * 0.5), plan["hub_diameter"])
+           (r_hub + 13, r_hub * 0.3), plan["hub_diameter"])
     leader(ax, (r_pcd * math.cos(math.radians(340)),
                 r_pcd * math.sin(math.radians(340))),
-           (r_pcd + 16, -r_pcd * 0.5), plan["pcd_diameter"])
+           (r_pcd + 22, -r_pcd * 0.5), plan["pcd_diameter"])
     # bolt note with a leader to the hole nearest the note (hole #4, 270°);
     # fontsize 8 — the note is long, the standard 9 would crowd the view
     nx, ny = -r_f - 20, -r_f - 14
@@ -427,15 +427,15 @@ def _draw_front_flange(ax, view, spec: dict) -> list[str]:
     plan = {e["tag"]: e["text"] for e in dimension_plan(spec)
             if e["view"] == "front"}
     dim_v(ax, -r_f - 14, 0, flange_t, plan["flange_thickness"],
-          ext0=-r_f, ext1=-r_f)
+          offset=2, ext0=-r_f, ext1=-r_f)
     dim_v(ax, r_hub + 14, flange_t, total, plan["hub_length"],
           ext0=r_hub, ext1=r_hub)
     dim_v(ax, r_f + 14, 0, total, plan["height"], ext0=r_f, ext1=r_f)
-    dim_h(ax, -r_bore, r_bore, -12, plan["bore_diameter"], ext0=0, ext1=0)
+    dim_h(ax, -r_bore, r_bore, -18, plan["bore_diameter"], ext0=0, ext1=0)
     _dim_h_narrow(ax, -key_w / 2, key_w / 2, total + 8, plan["keyway_width"],
                   ext0=total, ext1=total)
     ax.set_xlim(-r_f - 25, r_f + 30)
-    ax.set_ylim(-20, total + 20)
+    ax.set_ylim(-24, total + 20)
     ax.set_aspect("equal")
     ax.set_title("FRONT VIEW", fontsize=10, loc="left")
     ax.axis("off")
@@ -472,10 +472,10 @@ def _draw_end_flange(ax, view, spec: dict) -> list[str]:
         sign = 1 if (b.min.X + b.max.X) / 2 >= 0 else -1
     # d + t2 across the part (DIN 6885): from the bore wall on the side
     # OPPOSITE the keyway (its silhouette line is drawn) to the keyway floor
-    _dim_h_narrow(ax, -sign * r_bore, sign * (r_bore + key_d), -8,
+    _dim_h_narrow(ax, -sign * r_bore, sign * (r_bore + key_d), -14,
                   plan["keyway_depth"], ext0=0, ext1=0)
     ax.set_xlim(-r_f - 6, r_f + 6)
-    ax.set_ylim(-18, total + 6)
+    ax.set_ylim(-20, total + 6)
     ax.set_aspect("equal")
     ax.set_title("END VIEW", fontsize=10, loc="left")
     ax.axis("off")
@@ -1113,6 +1113,10 @@ def build_manifest(views: dict, probes: dict, spec: dict,
                 "hidden circles with circumference < 3 dash periods drawn "
                 "solid narrow (legibility convention)"),
             "frame_clearance": "every drawn element ≥2 mm inside the frame (mechanical gate)",
+            "text_clearance": (
+                "dimension/label texts ≥2 mm from the projected geometry "
+                "(mechanical gate; leader arrows excluded — they point at "
+                "geometry by design)"),
         },
         "line_styles": {
             "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
@@ -1182,7 +1186,8 @@ def draw_top(ax, view, spec: dict) -> list[str]:
         drawn.append("pitch")
     dim_h(ax, -L / 2, L / 2, y_dim - 12, plan["length"], offset=2,
           ext0=-W / 2, ext1=-W / 2)
-    dim_v(ax, -L / 2 - 14, -W / 2, W / 2, plan["width"], ext0=-L / 2, ext1=-L / 2)
+    dim_v(ax, -L / 2 - 14, -W / 2, W / 2, plan["width"],
+          offset=2, ext0=-L / 2, ext1=-L / 2)
     drawn += ["length", "width"]
     ax.set_xlim(-L / 2 - 45, L / 2 + 30)
     ax.set_ylim(-W / 2 - 40, W / 2 + 30)
@@ -1207,7 +1212,7 @@ def draw_front(ax, view, spec: dict) -> list[str]:
             if e["view"] == "front"}
     leg_x = -L / 2 + inset  # left leg centre
     dim_v(ax, -L / 2 - 14, lh, lh + H, plan["height"],
-          ext0=-L / 2, ext1=-L / 2)
+          offset=2, ext0=-L / 2, ext1=-L / 2)
     leader(ax, (leg_x + ld / 2 + 4, lh / 2), (leg_x + 30, lh / 2 - 6),
            plan["leg_height"])
     leader(ax, (leg_x, lh), (leg_x - 2, -8), plan["leg_inset"])
@@ -1390,6 +1395,61 @@ def frame_collision_violations(fig, frame_ax) -> list[str]:
     return violations
 
 
+def text_geometry_collisions(fig, views: dict, view_axes: dict,
+                             clearance: float = 2.0) -> list[str]:
+    """Dimension/label texts must keep clearance from the projected geometry.
+
+    Samples every projected edge of each view (≈1 mm step) and probes every
+    data-transformed Text of the view's axes (bbox corners, edge midpoints,
+    centre, transformed back to data coordinates) against the sample cloud;
+    a closer approach than `clearance` mm is a violation. Catches the
+    'dimension number overlaps the part outline' defect class (owner
+    2026-10-28: Ø25, 28.3; the gate then caught Ø90 as well) that the frame
+    gate cannot see — that one checks the sheet frame only. Leader ARROWS
+    legitimately touch the geometry and are not Texts; the axes title and
+    any text not placed in data coordinates are excluded.
+    """
+    from matplotlib.text import Annotation, Text
+    violations = []
+    for name, ax in view_axes.items():
+        vis, hid = views[name]
+        pts = []
+        for e in list(vis) + list(hid):
+            n = min(96, max(2, math.ceil(e.length / 1.0) + 1))
+            pts += [(v.X, v.Y) for v in (e @ (i / (n - 1)) for i in range(n))]
+        if not pts:
+            continue
+        inv = ax.transData.inverted()
+        renderer = fig.canvas.get_renderer()
+        for obj in ax.texts:
+            if (not isinstance(obj, Text)
+                    or not (obj.get_text() or "").strip()
+                    or not obj.get_visible()
+                    or not obj.get_transform().contains_branch(ax.transData)):
+                continue
+            # an Annotation's window extent unions its arrow patch — the
+            # arrow legitimately touches the geometry it points at, so the
+            # clearance is judged on the text alone
+            bb = (Text.get_window_extent(obj, renderer=renderer)
+                  if isinstance(obj, Annotation)
+                  else obj.get_window_extent(renderer=renderer))
+            probes = [
+                (bb.x0, bb.y0), (bb.x0, bb.y1), (bb.x1, bb.y0), (bb.x1, bb.y1),
+                ((bb.x0 + bb.x1) / 2, (bb.y0 + bb.y1) / 2),
+                ((bb.x0 + bb.x1) / 2, bb.y0), ((bb.x0 + bb.x1) / 2, bb.y1),
+                (bb.x0, (bb.y0 + bb.y1) / 2), (bb.x1, (bb.y0 + bb.y1) / 2),
+            ]
+            for px, py in probes:
+                dx, dy = inv.transform((px, py))
+                d = min(math.hypot(dx - qx, dy - qy) for qx, qy in pts)
+                if d < clearance:
+                    violations.append(
+                        f"{name}: text '{obj.get_text()[:24]}' approaches "
+                        f"geometry to {d:.2f} mm (< {clearance:g})")
+                    break
+    return violations
+
+
 # ---------------------------------------------------------------- main
 
 
@@ -1461,6 +1521,12 @@ def main() -> None:
     for v in violations:
         print(f"PROBE FAILED: {v}", file=sys.stderr)
     manifest["sheet"]["frame_clearance_ok"] = not violations
+
+    text_violations = text_geometry_collisions(
+        fig, views, {"top": ax_top, "front": ax_front, "end": ax_end})
+    for v in text_violations:
+        print(f"PROBE FAILED: {v}", file=sys.stderr)
+    manifest["sheet"]["text_collision_ok"] = not text_violations
 
     failed = [
         f"{pid}: opening" for pid, pr in probes["pockets"].items()

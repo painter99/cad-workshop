@@ -15,7 +15,9 @@
     "centring_marks": "omitted — optional per ISO 5457; a generated PDF is not a preprinted trimmed sheet",
     "small_circles": "hidden circles with circumference < 3 dash periods drawn solid narrow (legibility convention)",
     "frame_clearance": "every drawn element ≥2 mm inside the frame (mechanical gate)",
-    "frame_clearance_ok": true
+    "text_clearance": "dimension/label texts ≥2 mm from the projected geometry (mechanical gate; leader arrows excluded — they point at geometry by design)",
+    "frame_clearance_ok": true,
+    "text_collision_ok": true
   },
   "line_styles": {
     "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",

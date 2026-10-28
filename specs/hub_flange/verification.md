@@ -7,7 +7,7 @@
   was offered as 5 veto questions and approved by the owner in chat
   2026-10-28 (listed under Assumptions in the spec).
 - Model: `models/hub_flange.py` (build123d 0.13.0, Python 3.13)
-- Test run: **63 passed** (44 existing + 19 new), local run 2026-10-28;
+- Test run: **64 passed** (45 existing incl. the new clearance-gate test + 19 new), local run 2026-10-28;
   includes the mandatory single-body connectivity test and the
   drawing-completeness gate (flange probes: bolt circle, bore, keyway, hub
   silhouette, view envelopes, plan coverage, manifest).
@@ -79,7 +79,8 @@ identifies the same features in the projected views by position and span
   model the same way the pocket path mirrors the organizer model. This is
   the measured cost-of-a-new-part datum for the docs/08 framework track
   (renderer lines outside spec+model; see the session report).
-- Two visual corrections after the first render:
+- Visual corrections (two found by my own zoom review, the third round by
+  the owner):
   1. The 8 mm keyway-width dimension got outside arrows (`_dim_h_narrow`) —
      two inside arrowheads (~3.4 mm each at 1:2) overlap on an 8 mm dim line.
   2. The keyway depth is dimensioned per DIN 6885 as d + t2 = 28.3 in the
@@ -87,6 +88,15 @@ identifies the same features in the projected views by position and span
      slot, and the slot-mouth line sits 0.66 mm from the wall line —
      ambiguous/illegible at 1:2. The d + t2 form references two drawn lines
      (the opposite bore wall and the slot floor).
+  3. Owner review flagged the dimension numbers touching the part outlines
+     (Ø25, 28.3). A new mechanical gate (`text_geometry_collisions`: every
+     text ≥2 mm from the projected geometry, judged on the text alone —
+     leader arrows point at geometry by design) confirmed those two and
+     caught the same class on Ø90 and on rotated vertical-dim numbers; all
+     placements fixed (dim lines moved below the part, the Ø90 leader text
+     out of the Ø120 outline, left-side vertical dim numbers on the far
+     side of their dim line). The organizer drawing had the same
+     rotated-text class on two dims and was re-rendered with the fix.
 - Manifest for a part without pockets: `pocket_labels: []`,
   `schedule_rows: 0` (no pocket table); probes carry a `flange` section.
 - Seam edges (cylinder closure artifacts) follow the existing rule: dropped
