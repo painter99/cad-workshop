@@ -23,7 +23,9 @@ Output: <out_prefix>.png, <out_prefix>.svg, <out_prefix>.manifest.json
 (default out_prefix: specs/<part>/visuals/drawing).
 
 The model builder is resolved by convention: ``models/<part>.build(spec)``.
-The annotation plan assumes the spec carries pockets and legs (current parts).
+The annotation plan dispatches on the part kind: pockets + legs (organizer
+kind) or ``features.flange_plate`` (round flange kind: bolt circle, through
+bore, keyway — probes and draw functions mirror ``models/hub_flange.py``).
 """
 from __future__ import annotations
 
@@ -195,6 +197,291 @@ def fill_targets(spec: dict) -> list[str]:
     return [p["id"] for p in pockets]
 
 
+# ---------------------------------------------------------------- flange kind
+#
+# Round flange parts (``features.flange_plate``): plate + hub + through bore
+# + keyway + bolt circle. As with the pockets, the probes and the draw
+# functions mirror the model (``models/hub_flange.py``): bolt hole positions
+# from the same spec formula (start angle + even spacing), feature lines
+# identified in the projected views by position and span.
+
+
+def _flange_hole_positions(spec: dict) -> list[tuple[float, float]]:
+    """Bolt hole centres: the model's rule (models/hub_flange) mirrored.
+
+    Hole #1 at start_angle_deg (90 = +Y), then every 360/count degrees. The
+    model's own positions are pinned to the spec by tests/test_hub_flange.py,
+    so a drift between this mirror and the model surfaces as a gate failure.
+    """
+    holes = spec["features"]["bolt_holes"]
+    r = holes["pcd_diameter"] / 2
+    n = holes["count"]
+    start = math.radians(holes.get("start_angle_deg", 90))
+    return [
+        (r * math.cos(start + 2 * math.pi * i / n),
+         r * math.sin(start + 2 * math.pi * i / n))
+        for i in range(n)
+    ]
+
+
+def _vertical_lines(edges, want_x: float, z0: float, z1: float) -> list:
+    """Projected vertical line edges at |x| ≈ want_x spanning [z0, z1].
+
+    Front/end views map the model's vertical axis (Z) to the viewport Y, so a
+    vertical edge is a constant-viewport-x line; |x| keeps the end view's
+    unresolved ±Y sign irrelevant.
+    """
+    out = []
+    for e in edges:
+        b = e.bounding_box()
+        if (b.max.X - b.min.X <= TOL
+                and abs(abs((b.min.X + b.max.X) / 2) - want_x) <= TOL
+                and b.min.Y >= z0 - TOL and b.max.Y <= z1 + TOL):
+            out.append(e)
+    return out
+
+
+def _dim_h_narrow(ax, x0, x1, y, text, ext0=None, ext1=None,
+                  stub: float = 5, offset: float = 2) -> None:
+    """Horizontal dimension too narrow for two inside arrowheads (ISO 129).
+
+    Arrowheads (~3.4 mm at 1:2) would overlap on dims under ~7 mm, so the
+    arrows sit OUTSIDE on short stubs, pointing inward at the extension
+    lines; the dim line spans the feature and the label sits above it.
+    """
+    ax.plot([x0, x1], [y, y], **DIMLINE)
+    ax.annotate("", xy=(x0, y), xytext=(x0 - stub, y),
+                arrowprops=dict(arrowstyle="->", color="#1a1a1a", lw=1.0,
+                                shrinkA=0, shrinkB=0, mutation_scale=12))
+    ax.annotate("", xy=(x1, y), xytext=(x1 + stub, y),
+                arrowprops=dict(arrowstyle="->", color="#1a1a1a", lw=1.0,
+                                shrinkA=0, shrinkB=0, mutation_scale=12))
+    for xf, ef in ((x0, ext0), (x1, ext1)):
+        if ef is None:
+            continue
+        d = 1 if y > ef else -1
+        ax.plot([xf, xf], [ef + d * 2, y + d * 4], **DIMLINE)
+    ax.text((x0 + x1) / 2, y + offset, text, ha="center", va="bottom",
+            fontsize=10, color="#1a1a1a")
+
+
+def _flange_dimension_plan(spec: dict) -> list[dict]:
+    """Dimension plan for the flange kind (round part: bolt circle + bore)."""
+    dims = spec["dimensions"]
+    n = spec["features"]["bolt_holes"]["count"]
+    return [
+        {"view": "top", "tag": "flange_diameter",
+         "text": f"Ø{dims['flange_diameter']:g}"},
+        {"view": "top", "tag": "hub_diameter",
+         "text": f"Ø{dims['hub_diameter']:g}"},
+        {"view": "top", "tag": "pcd_diameter",
+         "text": f"Ø{dims['pcd_diameter']:g}"},
+        {"view": "top", "tag": "bolt_hole_diameter",
+         "text": (f"{n}X Ø{dims['bolt_hole_diameter']:g} EQ. SP. "
+                  f"ON Ø{dims['pcd_diameter']:g} PCD")},
+        {"view": "front", "tag": "flange_thickness",
+         "text": f"{dims['flange_thickness']:g}"},
+        {"view": "front", "tag": "hub_length",
+         "text": f"{dims['hub_length']:g}"},
+        {"view": "front", "tag": "height", "text": f"{dims['height']:g}"},
+        {"view": "front", "tag": "bore_diameter",
+         "text": f"Ø{dims['bore_diameter']:g}"},
+        {"view": "front", "tag": "keyway_width",
+         "text": f"{dims['keyway_width']:g}"},
+        # DIN 6885 presents the keyway depth as d + t2: in the end view the
+        # bore silhouette on the keyway side is cut away by the slot (the
+        # slot-mouth line sits 0.66 mm from the wall line — illegible at
+        # 1:2), so the depth is dimensioned across, from the opposite bore
+        # wall to the keyway floor.
+        {"view": "end", "tag": "keyway_depth",
+         "text": f"{dims['bore_diameter'] + dims['keyway_depth']:g}"},
+    ]
+
+
+def _probe_flange(views: dict, spec: dict) -> dict:
+    """Probes for the flange kind: bolt circle, bore, keyway, hub silhouette.
+
+    Same contract as the pocket probes: read the projected edges (not the
+    matplotlib output), so the manifest and the gate cannot drift.
+    """
+    dims = spec["dimensions"]
+    vis_top, hid_top = views["top"]
+    vis_front, hid_front = views["front"]
+    vis_end, hid_end = views["end"]
+    total = dims["height"]
+    flange_t = dims["flange_thickness"]
+    bore_r = dims["bore_diameter"] / 2
+    hub_r = dims["hub_diameter"] / 2
+    hole_r = dims["bolt_hole_diameter"] / 2
+    key = spec["features"]["bore"]["keyway"]
+    key_w, key_d = key["width"], key["depth"]
+
+    bolt_holes = {}
+    for i, (cx, cy) in enumerate(_flange_hole_positions(spec), start=1):
+        opening = _edges_in(vis_top, cx - hole_r - TOL, cx + hole_r + TOL,
+                            cy - hole_r - TOL, cy + hole_r + TOL)
+        bb = _union_bbox(opening)
+        bolt_holes[f"hole_{i}"] = {
+            "top_opening_edges": len(opening),
+            "position_size_ok": bool(
+                opening and bb
+                and abs((bb[0] + bb[1]) / 2 - cx) <= TOL
+                and abs((bb[2] + bb[3]) / 2 - cy) <= TOL
+                and abs((bb[1] - bb[0]) - 2 * hole_r) <= TOL
+                and abs((bb[3] - bb[2]) - 2 * hole_r) <= TOL
+            ),
+        }
+
+    bore_lines = _vertical_lines(hid_front, bore_r, 0, total)
+    bb = _union_bbox(bore_lines) if bore_lines else None
+    bore = {
+        "front_hidden_profile_edges": len(bore_lines),
+        "front_profile_position_ok": bool(
+            bb and abs((bb[0] + bb[1]) / 2) <= TOL
+            and abs((bb[1] - bb[0]) - 2 * bore_r) <= TOL),
+    }
+
+    key_front = _vertical_lines(hid_front, key_w / 2, 0, total)
+    key_floor = (_vertical_lines(vis_end, bore_r + key_d, 0, total)
+                 + _vertical_lines(hid_end, bore_r + key_d, 0, total))
+    fb = _union_bbox(key_floor) if key_floor else None
+    keyway = {
+        "front_hidden_lines": len(key_front),
+        "end_floor_lines": len(key_floor),
+        "end_floor_position_ok": bool(
+            fb and abs(abs((fb[0] + fb[1]) / 2) - (bore_r + key_d)) <= TOL),
+    }
+
+    hub_lines = _vertical_lines(vis_front, hub_r, flange_t, total)
+    return {
+        "bolt_holes": bolt_holes,
+        "bore": bore,
+        "keyway": keyway,
+        "hub": {"front_silhouette_edges": len(hub_lines)},
+    }
+
+
+def _draw_top_flange(ax, view, spec: dict) -> list[str]:
+    """Top view for the flange kind: centre lines, PCD and hole callouts."""
+    vis, hid = view
+    dims = spec["dimensions"]
+    plot_edges(ax, vis, **SOLID)
+    plot_edges(ax, hid, **HIDDEN)
+    r_f = dims["flange_diameter"] / 2
+    r_hub = dims["hub_diameter"] / 2
+    r_pcd = dims["pcd_diameter"] / 2
+    plan = {e["tag"]: e["text"] for e in dimension_plan(spec)
+            if e["view"] == "top"}
+    # centre cross through the origin, 3 mm past the outline (ISO 128-24
+    # type 04.1, the pocket centre-line convention)
+    ax.plot([-r_f - 3, r_f + 3], [0, 0], **CENTERLINE)
+    ax.plot([0, 0], [-r_f - 3, r_f + 3], **CENTERLINE)
+    # bolt PCD as a dash-dot centre-line circle (ISO 129 bolt-circle convention)
+    ax.add_patch(Circle((0, 0), r_pcd, fill=False, lw=1.0, edgecolor="black",
+                        linestyle=(0, (24, 3, 1, 3))))
+    holes = _flange_hole_positions(spec)
+    for cx, cy in holes:
+        ax.plot([cx - 3, cx + 3], [cy, cy], **CENTERLINE)
+        ax.plot([cx, cx], [cy - 3, cy + 3], **CENTERLINE)
+    leader(ax, (r_f * math.cos(math.radians(200)),
+                r_f * math.sin(math.radians(200))),
+           (-r_f - 24, -r_f * 0.45), plan["flange_diameter"])
+    leader(ax, (r_hub * math.cos(math.radians(30)),
+                r_hub * math.sin(math.radians(30))),
+           (r_hub + 11, r_hub * 0.5), plan["hub_diameter"])
+    leader(ax, (r_pcd * math.cos(math.radians(340)),
+                r_pcd * math.sin(math.radians(340))),
+           (r_pcd + 16, -r_pcd * 0.5), plan["pcd_diameter"])
+    # bolt note with a leader to the hole nearest the note (hole #4, 270°);
+    # fontsize 8 — the note is long, the standard 9 would crowd the view
+    nx, ny = -r_f - 20, -r_f - 14
+    hx, hy = holes[3]
+    hr = dims["bolt_hole_diameter"] / 2
+    dx, dy = hx - nx, hy - ny
+    L = math.hypot(dx, dy)
+    ax.annotate(plan["bolt_hole_diameter"],
+                xy=(hx - hr * dx / L, hy - hr * dy / L), xytext=(nx, ny),
+                fontsize=8, color="#1a1a1a", ha="center", va="center",
+                arrowprops=dict(arrowstyle="->", color="#1a1a1a", lw=1.0))
+    ax.set_xlim(-r_f - 50, r_f + 10)
+    ax.set_ylim(-r_f - 18, r_f + 5)
+    ax.set_aspect("equal")
+    ax.set_title("TOP VIEW", fontsize=10, loc="left")
+    ax.axis("off")
+    return ["flange_diameter", "hub_diameter", "pcd_diameter",
+            "bolt_hole_diameter"]
+
+
+def _draw_front_flange(ax, view, spec: dict) -> list[str]:
+    """Front view for the flange kind: silhouette + stack dimensions."""
+    vis, hid = view
+    plot_edges(ax, vis, **SOLID)
+    plot_edges(ax, hid, **HIDDEN)
+    dims = spec["dimensions"]
+    r_f = dims["flange_diameter"] / 2
+    flange_t = dims["flange_thickness"]
+    r_hub = dims["hub_diameter"] / 2
+    r_bore = dims["bore_diameter"] / 2
+    key_w = dims["keyway_width"]
+    total = dims["height"]
+    plan = {e["tag"]: e["text"] for e in dimension_plan(spec)
+            if e["view"] == "front"}
+    dim_v(ax, -r_f - 14, 0, flange_t, plan["flange_thickness"],
+          ext0=-r_f, ext1=-r_f)
+    dim_v(ax, r_hub + 14, flange_t, total, plan["hub_length"],
+          ext0=r_hub, ext1=r_hub)
+    dim_v(ax, r_f + 14, 0, total, plan["height"], ext0=r_f, ext1=r_f)
+    dim_h(ax, -r_bore, r_bore, -12, plan["bore_diameter"], ext0=0, ext1=0)
+    _dim_h_narrow(ax, -key_w / 2, key_w / 2, total + 8, plan["keyway_width"],
+                  ext0=total, ext1=total)
+    ax.set_xlim(-r_f - 25, r_f + 30)
+    ax.set_ylim(-20, total + 20)
+    ax.set_aspect("equal")
+    ax.set_title("FRONT VIEW", fontsize=10, loc="left")
+    ax.axis("off")
+    return ["flange_thickness", "hub_length", "height", "bore_diameter",
+            "keyway_width"]
+
+
+def _draw_end_flange(ax, view, spec: dict) -> list[str]:
+    """End view for the flange kind: keyway depth per DIN 6885 (d + t2).
+
+    The bare depth (3.3 mm) is not drawable here: the bore silhouette on the
+    keyway side is cut away by the slot and the slot-mouth line sits 0.66 mm
+    from the wall line — illegible at 1:2. The depth is therefore dimensioned
+    across, from the opposite bore wall (drawn) to the keyway floor (drawn),
+    with outside arrows (ISO 129 narrow-dimension style). The keyway side
+    sign is a projection convention (the end view maps ±Y to ∓x): read from
+    the projected keyway floor line, mirroring the probe.
+    """
+    vis, hid = view
+    plot_edges(ax, vis, **SOLID)
+    plot_edges(ax, hid, **HIDDEN)
+    dims = spec["dimensions"]
+    r_f = dims["flange_diameter"] / 2
+    r_bore = dims["bore_diameter"] / 2
+    key_d = dims["keyway_depth"]
+    total = dims["height"]
+    plan = {e["tag"]: e["text"] for e in dimension_plan(spec)
+            if e["view"] == "end"}
+    floor = (_vertical_lines(vis, r_bore + key_d, 0, total)
+             + _vertical_lines(hid, r_bore + key_d, 0, total))
+    sign = 1
+    if floor:
+        b = floor[0].bounding_box()
+        sign = 1 if (b.min.X + b.max.X) / 2 >= 0 else -1
+    # d + t2 across the part (DIN 6885): from the bore wall on the side
+    # OPPOSITE the keyway (its silhouette line is drawn) to the keyway floor
+    _dim_h_narrow(ax, -sign * r_bore, sign * (r_bore + key_d), -8,
+                  plan["keyway_depth"], ext0=0, ext1=0)
+    ax.set_xlim(-r_f - 6, r_f + 6)
+    ax.set_ylim(-18, total + 6)
+    ax.set_aspect("equal")
+    ax.set_title("END VIEW", fontsize=10, loc="left")
+    ax.axis("off")
+    return ["keyway_depth"]
+
+
 def dimension_plan(spec: dict) -> list[dict]:
     """The complete set of dimensions the drawing must carry.
 
@@ -203,6 +490,8 @@ def dimension_plan(spec: dict) -> list[dict]:
     completeness test checks the plan covers every spec dimension key.
     """
     dims, feats = spec["dimensions"], spec["features"]
+    if "flange_plate" in feats:
+        return _flange_dimension_plan(spec)
     xs = sorted({p["x_position"] for p in feats["pockets"]})
     plan: list[dict] = []
     if len(xs) > 1:
@@ -453,6 +742,8 @@ def _drop_candidate(edge, polys, view: str, pocket: dict, leg_h: float,
 
 def _web_solids(spec: dict, builder_module) -> list:
     """The X-web solids exactly as the model builds them (its own helpers)."""
+    if "pockets" not in spec["features"]:
+        return []
     dims = spec["dimensions"]
     leg_h = dims["leg_height"]
     top_z = leg_h + dims["height"]
@@ -513,6 +804,13 @@ def classify_rib_edges(part, spec: dict, builder_module, n_samples: int = 9):
     per-view drop decision (strictly inside the pocket outline vs. on it)
     happens later, in ``suppress_false_rib_edges``.
     """
+    if "pockets" not in spec["features"]:
+        edges = list(part.edges())
+        seam_keys = {_line_key(e) for e in _seam_edges(part)}
+        seam_ids = {id(e) for e in edges
+                    if e.geom_type == GeomType.LINE and _line_key(e) in seam_keys}
+        stats = {"web_keep": 0, "web_suppress": 0, "seam_edges": len(seam_ids)}
+        return [], [], [e for e in edges if id(e) not in seam_ids], stats
     from OCP.BRepClass3d import BRepClass3d_SolidClassifier
     from OCP.gp import gp_Pnt
     from OCP.TopAbs import TopAbs_State
@@ -608,8 +906,8 @@ def suppress_false_rib_edges(views, part, spec: dict, builder_module):
     """
     keep3d, supp3d, others3d, stats = classify_rib_edges(part, spec, builder_module)
     seam3d = _seam_edges(part)
-    pockets = {p["id"]: p for p in spec["features"]["pockets"]}
-    leg_h = spec["dimensions"]["leg_height"]
+    pockets = {p["id"]: p for p in spec["features"].get("pockets", [])}
+    leg_h = spec["dimensions"].get("leg_height", 0)
     top_z = leg_h + spec["dimensions"]["height"]
     real3d = [e for e, _ in keep3d] + others3d
     filtered, per_view = {}, {}
@@ -733,13 +1031,15 @@ def probe_views(views: dict, spec: dict) -> dict:
     annotate the manifest and gate the drawing in the test suite.
     """
     dims, feats = spec["dimensions"], spec["features"]
-    pockets = feats["pockets"]
-    leg_h = dims["leg_height"]
+    pockets = feats.get("pockets", [])
+    leg_h = dims.get("leg_height", 0)
     top_z = dims["height"] + leg_h
     vis_top, hid_top = views["top"]
     vis_front, hid_front = views["front"]
     vis_end, hid_end = views["end"]
     probes: dict = {"pockets": {}, "x_fill": {}, "legs": {}, "outline": {}}
+    if "flange_plate" in feats:
+        probes["flange"] = _probe_flange(views, spec)
 
     for p in pockets:
         hx, hy = pocket_half_xy(p)
@@ -769,12 +1069,13 @@ def probe_views(views: dict, spec: dict) -> dict:
             "diag_edges_in_top": _diag_line_count(vis_top, p["x_position"], hx, hy),
         }
 
-    probes["legs"] = {
-        "front_visible_edges": _leg_edges(
-            vis_front, dims["length"] / 2 - feats["legs"]["inset"], leg_h),
-        "end_visible_edges": _leg_edges(
-            vis_end, dims["width"] / 2 - feats["legs"]["inset"], leg_h),
-    }
+    if "legs" in feats:
+        probes["legs"] = {
+            "front_visible_edges": _leg_edges(
+                vis_front, dims["length"] / 2 - feats["legs"]["inset"], leg_h),
+            "end_visible_edges": _leg_edges(
+                vis_end, dims["width"] / 2 - feats["legs"]["inset"], leg_h),
+        }
 
     for name, vis, want in (
         ("top", vis_top, (dims["length"], dims["width"])),
@@ -831,9 +1132,10 @@ def build_manifest(views: dict, probes: dict, spec: dict,
             "dimensions": dimension_plan(spec),
             "pocket_labels": [
                 {"id": p["id"], "text": pocket_label(p)}
-                for p in spec["features"]["pockets"]
+                for p in spec["features"].get("pockets", [])
             ],
-            "schedule_rows": len(spec["features"]["pockets"]) + 1,
+            "schedule_rows": (len(spec["features"].get("pockets", [])) + 1
+                              if spec["features"].get("pockets") else 0),
             "fill_note": fill_note(spec["features"].get("x_fill")),
         },
     }
@@ -844,6 +1146,8 @@ def build_manifest(views: dict, probes: dict, spec: dict,
 
 def draw_top(ax, view, spec: dict) -> list[str]:
     """Top view: projected edges + spec-driven labels, note and dimensions."""
+    if "flange_plate" in spec["features"]:
+        return _draw_top_flange(ax, view, spec)
     vis, hid = view
     dims, feats = spec["dimensions"], spec["features"]
     pockets = feats["pockets"]
@@ -890,6 +1194,8 @@ def draw_top(ax, view, spec: dict) -> list[str]:
 
 def draw_front(ax, view, spec: dict) -> list[str]:
     """Front view: projected edges (pockets appear as hidden lines)."""
+    if "flange_plate" in spec["features"]:
+        return _draw_front_flange(ax, view, spec)
     vis, hid = view
     plot_edges(ax, vis, **SOLID)
     plot_edges(ax, hid, **HIDDEN)
@@ -918,6 +1224,8 @@ def draw_front(ax, view, spec: dict) -> list[str]:
 
 def draw_end(ax, view, spec: dict) -> list[str]:
     """End view: projected edges + spec-driven dimensions."""
+    if "flange_plate" in spec["features"]:
+        return _draw_end_flange(ax, view, spec)
     vis, hid = view
     plot_edges(ax, vis, **SOLID)
     plot_edges(ax, hid, **HIDDEN)
@@ -1132,7 +1440,8 @@ def main() -> None:
     ax_info.set_xlim(-2, 93)  # 93: right frame edge must NOT sit on the axes
     # edge — matplotlib clips at the axes and would shave half the line width
     ax_info.set_ylim(-64, 10)  # schedule title (y=7.2) stays inside the axes
-    draw_schedule(ax_info, spec["features"]["pockets"], 0.0, 0.0)
+    if "pockets" in spec["features"]:
+        draw_schedule(ax_info, spec["features"]["pockets"], 0.0, 0.0)
     draw_title_block(ax_info, spec["part"], spec_path, 0.0, -46)
 
     manifest = build_manifest(views, probes, spec, spec_path)

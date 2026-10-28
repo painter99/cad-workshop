@@ -143,6 +143,19 @@ divergence between the two. Structural fix (2026-10-23):
   that the schematic never showed, and building the gate surfaced a real gap
   — the leg diameter had never been dimensioned; it is now.
 
+## 11. A trimmed cylindrical face reads `radius = None` — pin faces by invariants that survive trimming
+
+The hub flange's bore wall is a cylinder trimmed by the keyway slot; in
+build123d 0.13.0 that face reads `Face.radius == None`, while every
+untrimmed cylinder (plate, hub, bolt holes) reads its radius fine. A test
+keyed on radius would silently skip exactly the face the new feature
+complicates. Identify such faces by invariants that survive any re-trim —
+for the bore wall: full-height z-span plus envelope bbox — and keep taking
+positions from bounding-box centers, never `Face.center()` of a trimmed
+cylinder. The drawing gate follows the same rule: the bore, keyway and hub
+lines are identified in the projected views by position and span
+(`_vertical_lines`), not by face identity.
+
 ## Meta-lesson: correction rounds are cheap when the spec is the truth
 
 M3 went through three correction rounds (pocket re-read, leg placement, rib

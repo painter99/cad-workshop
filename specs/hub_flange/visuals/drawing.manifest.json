@@ -1,0 +1,196 @@
+{
+  "part": "hub_flange",
+  "spec": "spec.yaml",
+  "generator": "tools/render_drawing.py",
+  "principle": "views: projected from the model (build123d project_to_viewport, OCCT HLR); annotations: from the spec",
+  "scale": "1:2 (ISO 5455)",
+  "font": {
+    "name": "osifont",
+    "standard": "ISO 3098 lettering (osifont)",
+    "license": "GPL-3.0 with font exception (assets/fonts/osifont-LICENSE.txt)"
+  },
+  "sheet": {
+    "size": "A4 landscape, 297×210 mm (ISO 5457)",
+    "frame": "10 mm margin (convention — full ISO 5457 text not in repo)",
+    "centring_marks": "omitted — optional per ISO 5457; a generated PDF is not a preprinted trimmed sheet",
+    "small_circles": "hidden circles with circumference < 3 dash periods drawn solid narrow (legibility convention)",
+    "frame_clearance": "every drawn element ≥2 mm inside the frame (mechanical gate)",
+    "frame_clearance_ok": true
+  },
+  "line_styles": {
+    "visible": "ISO 128-24 type 01.2, continuous wide (0.7 mm)",
+    "hidden": "ISO 128-24 type 02.1, dashed narrow (0.35 mm, 12d/3d)",
+    "centre_lines": "ISO 128-24 type 04.1, long-dashed dotted narrow; pocket centre lines extend 3 mm beyond the opening (owner delegation 2026-10-24: the more professional per ISO form)",
+    "dimensions": "ISO 128-24 type 01.1, continuous narrow"
+  },
+  "views": {
+    "top": {
+      "visible_edges": 12,
+      "hidden_edges": 12
+    },
+    "front": {
+      "visible_edges": 7,
+      "hidden_edges": 55
+    },
+    "end": {
+      "visible_edges": 10,
+      "hidden_edges": 67
+    }
+  },
+  "probes": {
+    "pockets": {},
+    "x_fill": {},
+    "legs": {},
+    "outline": {
+      "top": {
+        "span_x_ok": true,
+        "span_y_ok": true
+      },
+      "front": {
+        "span_x_ok": true,
+        "span_y_ok": true
+      },
+      "end": {
+        "span_x_ok": true,
+        "span_y_ok": true
+      }
+    },
+    "flange": {
+      "bolt_holes": {
+        "hole_1": {
+          "top_opening_edges": 1,
+          "position_size_ok": true
+        },
+        "hole_2": {
+          "top_opening_edges": 1,
+          "position_size_ok": true
+        },
+        "hole_3": {
+          "top_opening_edges": 1,
+          "position_size_ok": true
+        },
+        "hole_4": {
+          "top_opening_edges": 1,
+          "position_size_ok": true
+        },
+        "hole_5": {
+          "top_opening_edges": 1,
+          "position_size_ok": true
+        },
+        "hole_6": {
+          "top_opening_edges": 1,
+          "position_size_ok": true
+        }
+      },
+      "bore": {
+        "front_hidden_profile_edges": 2,
+        "front_profile_position_ok": true
+      },
+      "keyway": {
+        "front_hidden_lines": 4,
+        "end_floor_lines": 2,
+        "end_floor_position_ok": true
+      },
+      "hub": {
+        "front_silhouette_edges": 2
+      }
+    }
+  },
+  "annotations": {
+    "dimensions": [
+      {
+        "view": "top",
+        "tag": "flange_diameter",
+        "text": "Ø120"
+      },
+      {
+        "view": "top",
+        "tag": "hub_diameter",
+        "text": "Ø50"
+      },
+      {
+        "view": "top",
+        "tag": "pcd_diameter",
+        "text": "Ø90"
+      },
+      {
+        "view": "top",
+        "tag": "bolt_hole_diameter",
+        "text": "6X Ø11 EQ. SP. ON Ø90 PCD"
+      },
+      {
+        "view": "front",
+        "tag": "flange_thickness",
+        "text": "12"
+      },
+      {
+        "view": "front",
+        "tag": "hub_length",
+        "text": "18"
+      },
+      {
+        "view": "front",
+        "tag": "height",
+        "text": "30"
+      },
+      {
+        "view": "front",
+        "tag": "bore_diameter",
+        "text": "Ø25"
+      },
+      {
+        "view": "front",
+        "tag": "keyway_width",
+        "text": "8"
+      },
+      {
+        "view": "end",
+        "tag": "keyway_depth",
+        "text": "28.3"
+      }
+    ],
+    "pocket_labels": [],
+    "schedule_rows": 0,
+    "fill_note": null,
+    "drawn_tags": {
+      "top": [
+        "flange_diameter",
+        "hub_diameter",
+        "pcd_diameter",
+        "bolt_hole_diameter"
+      ],
+      "front": [
+        "flange_thickness",
+        "hub_length",
+        "height",
+        "bore_diameter",
+        "keyway_width"
+      ],
+      "end": [
+        "keyway_depth"
+      ]
+    }
+  },
+  "rib_edge_suppression": {
+    "rule": "web-related edges of homogeneous material are dropped per view: embedded rib ends (wholly in the walls) and web-web crossing seams; cylinder seam edges are dropped in the end view (owner 2026-10-24). Wall junctions — edges lying on the pocket wall — are real concave edges and are kept (drawn dashed, strict ISO, owner 2026-10-24). Void-facing floor/bottom chords are kept in every view",
+    "web_edges": {
+      "web_keep": 0,
+      "web_suppress": 0,
+      "seam_edges": 8
+    },
+    "per_view": {
+      "top": {
+        "dropped_visible": 0,
+        "dropped_hidden": 0
+      },
+      "front": {
+        "dropped_visible": 0,
+        "dropped_hidden": 0
+      },
+      "end": {
+        "dropped_visible": 0,
+        "dropped_hidden": 0
+      }
+    }
+  }
+}
