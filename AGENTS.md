@@ -81,6 +81,9 @@ web search is for build123d/OCCT behavior and external standards.
 
 ## Conventions
 
+- **Code style.** Modeling rules (2D before 3D, fillet/chamfer last,
+  explicit selections with size assertions) live in
+  [docs/05-modeling-rules.md](docs/05-modeling-rules.md).
 - **Environment.** Python venv at `.venv`; the build123d version is pinned
   in `requirements.txt` — do not upgrade casually, the drawing stack depends
   on exact behavior. Details: docs/02. Presentation renders use the
