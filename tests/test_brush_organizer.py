@@ -7,6 +7,7 @@ import trimesh
 from build123d import GeomType, Vector, export_step, export_stl, import_step
 
 from models.brush_organizer import build, load_spec
+from conftest import assert_stl_export_boundary
 
 REPO = Path(__file__).resolve().parents[1]
 EXPORTS = REPO / "exports"
@@ -71,6 +72,10 @@ def test_bounding_box(measured, spec):
     assert measured["total_height"] == pytest.approx(
         d["height"] + d["leg_height"], abs=0.01
     )
+    # block and leg heights asserted separately: the total alone cannot
+    # distinguish a 35 mm block on 5 mm legs from 37 mm on 3 mm
+    assert measured["leg_height"] == pytest.approx(d["leg_height"], abs=0.01)
+    assert measured["height"] == pytest.approx(d["height"], abs=0.01)
 
 
 def test_validity(part):
@@ -196,13 +201,17 @@ def test_x_webs_reach_block_bottom(part, spec):
         )
 
 
-def test_stl_export_roundtrip_and_printability(part):
+def test_stl_export_roundtrip_and_printability(part, spec):
     EXPORTS.mkdir(exist_ok=True)
     stl_path = EXPORTS / "brush_organizer.stl"
     export_stl(part, str(stl_path))
     mesh = trimesh.load(stl_path)
     assert mesh.is_watertight, "exported STL is not watertight -> not printable"
     assert mesh.volume == pytest.approx(part.volume, rel=0.02)
+    d = spec["dimensions"]
+    assert_stl_export_boundary(
+        mesh, (d["length"], d["width"], d["height"] + d["leg_height"])
+    )
 
 
 def test_step_export_roundtrip(part):

@@ -9,6 +9,7 @@ import yaml
 from build123d import GeomType, import_step
 
 from models.test_block import build, load_spec
+from conftest import assert_stl_export_boundary
 
 REPO = Path(__file__).resolve().parents[1]
 EXPORTS = REPO / "exports"
@@ -86,6 +87,12 @@ def test_hole_spacing(measured, spec):
     )
 
 
+def test_single_body(part):
+    """Mandatory connectivity test: the part must be ONE connected solid."""
+    bodies = part.solids()
+    assert len(bodies) == 1, f"part has {len(bodies)} disconnected bodies"
+
+
 def test_stl_export_roundtrip_and_printability(part, spec):
     """Export STL, re-import, verify watertight + volume (printability proxy)."""
     EXPORTS.mkdir(exist_ok=True)
@@ -96,6 +103,27 @@ def test_stl_export_roundtrip_and_printability(part, spec):
     mesh = trimesh.load(stl_path)
     assert mesh.is_watertight, "exported STL is not watertight -> not printable"
     assert mesh.volume == pytest.approx(part.volume, rel=0.02)
+    d = spec["dimensions"]
+    assert_stl_export_boundary(mesh, (d["length"], d["width"], d["thickness"]))
+
+
+def test_stl_export_boundary_check_fails_on_wrong_export():
+    """Negative test: a wrong envelope or disconnected components must fail."""
+    from conftest import assert_stl_export_boundary
+
+    box = trimesh.creation.box(extents=[10, 10, 10])
+    with pytest.raises(AssertionError):
+        assert_stl_export_boundary(box, (60, 30, 8))
+    with pytest.raises(AssertionError):
+        assert_stl_export_boundary(box, (10, 10))  # wrong arity must fail
+    transposed = trimesh.creation.box(extents=[10, 20, 30])
+    with pytest.raises(AssertionError):
+        assert_stl_export_boundary(transposed, (20, 10, 30))
+    second = box.copy()
+    second.apply_translation([50, 0, 0])
+    two = trimesh.util.concatenate([box, second])
+    with pytest.raises(AssertionError, match="disconnected bodies"):
+        assert_stl_export_boundary(two, (60, 10, 10))
 
 
 def test_step_export_roundtrip(part, spec):

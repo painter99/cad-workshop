@@ -15,6 +15,7 @@ from build123d import GeomType, Vector, export_step, export_stl, import_step
 
 import models.hub_flange
 from models.hub_flange import build, load_spec
+from conftest import assert_stl_export_boundary
 from tools.render_drawing import (
     TOL,
     _edges_in,
@@ -220,13 +221,15 @@ def test_volume_analytic(part, spec):
     assert part.volume == pytest.approx(analytic, rel=0.001)
 
 
-def test_stl_export_roundtrip_and_printability(part):
+def test_stl_export_roundtrip_and_printability(part, spec):
     EXPORTS.mkdir(exist_ok=True)
     stl_path = EXPORTS / "hub_flange.stl"
     export_stl(part, str(stl_path))
     mesh = trimesh.load(stl_path)
     assert mesh.is_watertight, "exported STL is not watertight -> not printable"
     assert mesh.volume == pytest.approx(part.volume, rel=0.02)
+    d = spec["dimensions"]
+    assert_stl_export_boundary(mesh, (d["length"], d["width"], d["height"]))
 
 
 def test_step_export_roundtrip(part):

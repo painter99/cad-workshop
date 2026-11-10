@@ -10,8 +10,9 @@
 | Feature counts | number of holes, faces, edges vs. spec | missing or duplicated features |
 | Positions | distances between feature centers vs. spec | misplaced holes, wrong spacing |
 | Export round-trip | export STEP/STL, re-import, re-check | corrupted or empty export |
-| Completeness | every spec dimension has ≥1 assertion | silently untested dimensions |
+| Completeness | every spec dimension has ≥1 recorded measurement | a spec dimension without any recorded measurement |
 | Connectivity | body/solid count == expected (typically 1) | features silently disconnected by cuts (e.g. legs detached by open sectors) |
+| Export boundary | final STL envelope vs. spec-derived dims + component count | export/import scale mistakes; disconnected closed components that are still watertight |
 
 ## How tests read the spec
 

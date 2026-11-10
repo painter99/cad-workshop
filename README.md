@@ -24,7 +24,7 @@ spec (approved dimensions) → model (build123d) → drawing (views projected fr
 1. A drawing or sketch is transcribed into a machine-readable `spec.yaml` and **approved by a human** before any modeling starts. The spec's structure is validated against a JSON Schema contract (`tools/validate_spec.py`, also a CI step) before any model reads it.
 2. The model script reads parameters from the spec — never from memory or hard-coded magic numbers.
 3. A dimensioned drawing is generated from the built model: its views are true projections (`project_to_viewport`, OCCT hidden-line removal — a feature cannot go missing from a projected view), while dimensions, labels and the schedule come from the approved spec. Completeness probes gate the drawing against the spec in CI.
-4. Tests assert every dimension in the spec against the measured geometry, and a completeness check ensures no dimension is silently untested.
+4. Tests assert every dimension in the spec against the measured geometry, and a completeness check fails if any spec dimension has no recorded measurement.
 5. Headless previews are rendered for visual review; a verification report compares drawing dimensions to measured values.
 6. Changes are reviewed as diffs and merged only after CI and human approval.
 
@@ -64,13 +64,13 @@ Every push to `main` validates every spec against its JSON Schema contract and r
 
 ## Status
 
-The verification loop is proven end-to-end on two parts:
+The verification loop is proven end-to-end on three parts:
 
 - **test_block** — reference part (60×30×8, 2× Ø6, 40 mm pitch), the calibration
   target for the whole workflow.
 - **brush_organizer** — first real part (M3): 6 pockets with X-rib floors on
   corner legs, transcribed from a hand sketch, corrected in three rounds,
-  28/28 tests passing (incl. the drawing-completeness gate), exported
+  full test suite passing (incl. the drawing-completeness gate), exported
   (STL/STEP) and **accepted by the owner on 2026-10-20**. Presentation
   renders (`specs/brush_organizer/visuals/`) were produced with a headless
   Blender Cycles pipeline from the verified STL
@@ -79,6 +79,12 @@ The verification loop is proven end-to-end on two parts:
   from `spec.yaml`
   ([tools/render_drawing.py](tools/render_drawing.py)).
   External FDM printing is planned but not yet done.
+- **hub_flange** — third part and the framework proof (2026-10-28): a
+  functionally different part (Ø120×12 flange plate, hub Ø50×18, Ø25 bore
+  through, 6× Ø11 on a Ø90 PCD, 8 mm keyway) taken through the full loop
+  from a public-domain source drawing, verified by a post-hoc diff against
+  the source DXF, and **accepted by the owner**
+  ([specs/hub_flange/verification.md](specs/hub_flange/verification.md)).
 
 Current open tasks: first external print of the brush organizer, and
 presentation polish (render style, optional hero variant with brushes) — see

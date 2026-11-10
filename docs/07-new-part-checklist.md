@@ -52,13 +52,14 @@ produces an artifact that the next step consumes.
 - [ ] Include the mandatory **connectivity test** (`body_count == 1` or the
       expected count) — per-dimension tests cannot see disconnected bodies.
 - [ ] Include the completeness check: the suite fails if any spec dimension
-      has no assertion.
+      has no recorded measurement (the check verifies measurement coverage;
+      each measurement's correctness is the per-dimension tests' job).
 - [ ] Run `pytest` locally until green (includes the drawing gate).
 
 ## 5. Preview and compare
 
-- [ ] Generate previews (`pytest` renders them into `exports/`, or
-      `tools/render_preview.py` directly).
+- [ ] Generate previews with `tools/render_preview.py` directly (the test
+      suite does not render previews).
 - [ ] **Compare the preview against the sketch before the final build.**
       This step caught the one defect the whole suite missed (M3: legs
       silently disconnected by open quarter sectors).
