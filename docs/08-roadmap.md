@@ -90,7 +90,7 @@ The strongest evidence that the workflow is a method, not a one-off.)*
 - **Printability in the loop** — headless slicer pass (e.g. PrusaSlicer CLI)
   over the exported STL: bridging spans, overhangs, time/material estimates.
   Turns the manual printability notes in verification reports into tests,
-  calibrated against the first real print.
+  calibrated against a real print if one is ever made.
 
 - **Property-based geometry tests** — invariant checks (validity, watertight,
   body count) across randomized spec parameters instead of fixed assertions;
@@ -103,6 +103,6 @@ The strongest evidence that the workflow is a method, not a one-off.)*
 
 - GitHub topics + description (requires a token; PATCH /repos is not
   possible without one; or set both manually in the GitHub UI).
-- External FDM print of brush_organizer (PLA/PETG); calibrate the
-  printability checks against the result.
+- Physical FDM print of brush_organizer: on hold, not currently planned.
+  If printed, calibrate the printability checks against the result.
 - Presentation polish: render material color, optional hero variant.
