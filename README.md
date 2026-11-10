@@ -78,7 +78,9 @@ The verification loop is proven end-to-end on three parts:
   drawing is generated with views projected from the model and dimensions
   from `spec.yaml`
   ([tools/render_drawing.py](tools/render_drawing.py)).
-  External FDM printing is planned but not yet done.
+  A physical FDM print is on hold and not currently planned: existing
+  alternatives serve the same purpose at lower cost. The project demonstrates
+  the verified workflow.
 - **hub_flange** — third part and the framework proof (2026-10-28): a
   functionally different part (Ø120×12 flange plate, hub Ø50×18, Ø25 bore
   through, 6× Ø11 on a Ø90 PCD, 8 mm keyway) taken through the full loop
@@ -86,8 +88,8 @@ The verification loop is proven end-to-end on three parts:
   the source DXF, and **accepted by the owner**
   ([specs/hub_flange/verification.md](specs/hub_flange/verification.md)).
 
-Current open tasks: first external print of the brush organizer, and
-presentation polish (render style, optional hero variant with brushes) — see
+Current open tasks: presentation polish (render style, optional hero variant
+with brushes) — see
 [docs/06-lessons-learned.md](docs/06-lessons-learned.md). To add your own
 part, follow [docs/07-new-part-checklist.md](docs/07-new-part-checklist.md).
 
