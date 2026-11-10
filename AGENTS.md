@@ -68,8 +68,12 @@ web search is for build123d/OCCT behavior and external standards.
 3. **Drawing views come from the model; annotations come from the spec.**
    Never hand-draw or duplicate geometry in a renderer (background: docs/06,
    the geometry-duplication lesson).
-4. **Every spec dimension gets an assertion, and a completeness test fails
-   if any dimension has none.** Include the mandatory connectivity test —
+4. **Every spec dimension gets an assertion.** The completeness test
+   mechanically verifies measurement coverage only (a dimension without a
+   recorded measurement in the registry fails) — it does not prove that an
+   assertion exists or that a measurement is correct; that is the
+   per-dimension tests' job.
+   Include the mandatory connectivity test —
    per-dimension tests cannot see disconnected bodies (background: docs/06,
    the connectivity lesson).
 5. **Verify every build123d API call against the installed version**

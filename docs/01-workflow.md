@@ -55,7 +55,7 @@ The workshop runs a closed loop. Nothing is "done" because it was written confid
 ### 4. Tests (pytest)
 
 - One assertion per spec dimension: bounding box, volume, hole counts, validity, export round-trip.
-- A completeness test fails if any spec dimension has no matching assertion.
+- A completeness test fails if any spec dimension has no recorded measurement.
 - Parts with a drawing also run the **drawing-completeness gate**
   (`tests/test_drawing_completeness.py`): projected views probed against the
   spec (openings, ribs, hidden profiles, legs, envelopes) plus manifest
@@ -64,7 +64,10 @@ The workshop runs a closed loop. Nothing is "done" because it was written confid
 
 ### 5. Preview (headless render)
 
-- The test suite renders PNG previews from the built model (several views) into `exports/`.
+- PNG previews are rendered headless from the exported model with
+  `tools/render_preview.py` (several views into `exports/`); the test suite
+  itself does not render previews. CI renders the reference part's previews
+  (test_block) as a separate step.
 - The preview is evidence for human review, not a substitute for it.
 
 ### 6. Verification report and review
@@ -75,7 +78,11 @@ The workshop runs a closed loop. Nothing is "done" because it was written confid
 ## Git discipline
 
 - Work happens on a branch; every push and merge requires explicit human approval.
-- CI must be green before merge; CI verifies code, the human verifies appearance.
+- CI runs on every push to `main` (docs-only changes skip the suite via
+  `paths-ignore`) and can be dispatched manually; a feature branch has no CI
+  run of its own — the suite is verified locally before merge, and the CI run
+  on `main` is the authoritative post-merge check. CI verifies code, the human
+  verifies appearance.
 - The original drawing is versioned together with the spec **when the owner
   agrees to publish it**; when the sketch must stay private, the spec's
   `drawing:` field points to a generated dimensioned drawing instead, and the

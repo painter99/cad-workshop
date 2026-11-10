@@ -22,6 +22,7 @@ maintenance).
   where the framework ends and manual work begins. The feature mix must
   differ from pockets + legs (e.g. a mount with holes and ribs, a bracket,
   a box with screw bosses) — that is what exposes gaps in generality.
+  (Done 2026-10-28: hub_flange — flange plate + hub + keyway, no pockets/legs.)
 - **"Use this template"** — enable in the GitHub UI (one minute, zero
   maintenance); reuse becomes one click for anyone.
 
@@ -36,8 +37,8 @@ Starts only after Phase 1 shows what actually generalizes (rule of three):
   144 references) — the largest known gap.
 - **Shared test harness in `conftest.py`** — helpers such as
   `assert_spec_dimensions`, a connectivity check, an export round-trip. A
-  new part = spec + model + a thin test file. Today `conftest.py` has 6
-  lines and tests are written from scratch.
+  new part = spec + model + a thin test file. Started 2026-11-10: the first
+  shared helper (`assert_stl_export_boundary`) lives in `conftest.py`.
 - **Fit-check as a test** — see "Next" below.
 
 ### Phase 3 — Framework as a product (only with an audience or a second instance)
@@ -65,10 +66,11 @@ Starts only after Phase 1 shows what actually generalizes (rule of three):
 
 ## Now
 
-- **Third part (pattern replication)** — build a new, functionally different
-  part through the full loop and record how many correction rounds it needed.
-  The strongest evidence that the workflow is a method, not a one-off.
-  Reveals which improvements below are actually needed.
+*(Shipped 2026-10-28: third part (pattern replication) — hub_flange, a
+functionally different part (flange plate + hub + keyway, no pockets/legs)
+taken through the full loop; 6 correction rounds recorded in
+[specs/hub_flange/verification.md](../specs/hub_flange/verification.md).
+The strongest evidence that the workflow is a method, not a one-off.)*
 
 *(Shipped 2026-10-22: spec schema validation — `schemas/spec.schema.json`,
 `tools/validate_spec.py`, CI step; documented in
